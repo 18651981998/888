@@ -61,6 +61,12 @@
             color: #999 !important;
             margin-top: 15px !important;
         }
+        .loading-text {
+            color: #2196F3;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
         /* 默认隐藏主容器，激活后显示 */
         .container { 
             display: none;
@@ -276,14 +282,15 @@
 </head>
 
 <body>
-    <!-- 新增：启动激活弹窗 -->
+    <!-- 启动激活弹窗 -->
     <div id="startOverlay" class="start-overlay">
         <div class="start-card">
             <h2>📚 单词听写工具</h2>
             <p>为了确保语音播报正常工作</p>
             <p>请点击下方按钮激活语音</p>
-            <button id="activateBtn" class="btn btn-primary activate-btn">🔊 激活语音并开始使用</button>
-            <p class="tip-text">支持微信、UC、Chrome等所有主流浏览器</p>
+            <button id="activateBtn" class="btn btn-primary activate-btn">🔊 点击激活语音</button>
+            <p id="loadingText" class="loading-text">正在初始化语音引擎...</p>
+            <p class="tip-text">支持微信、QQ、Chrome、UC等所有浏览器</p>
         </div>
     </div>
 
@@ -337,7 +344,7 @@
             </div>
         </div>
 
-        <!-- 词库区域（保留原功能） -->
+        <!-- 词库区域 -->
         <div class="word-library">
 <div class="library-main-header" onclick="toggleWholeLibrary(this)">
 <span class="main-lib-title">📚 何家坳2106班-最新重点单词库</span>
@@ -420,25 +427,21 @@
             </div>
         </div>
 
-        <!-- ✅ 整合完成：自定义单词输入 + 标题 + 保存列表 全部在折叠面板内 -->
+        <!-- 自定义单词输入 -->
         <div class="input-area">
             <div class="library-main-header" onclick="toggleCustomLibrary(this)">
                 <span class="main-lib-title">✍️ 自定义单词输入</span>
                 <span class="main-fold-btn">展开▼</span>
             </div>
             <div class="custom-inner">
-                <!-- 单词表标题（已移入） -->
                 <div class="control-group" style="margin-bottom:12px;">
                     <label class="control-label">单词表标题:</label>
                     <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
                 </div>
-                <!-- 单词输入框 -->
                 <textarea id="wordInput" placeholder="自定义输入单词，一行一个"></textarea>
-                <!-- 功能按钮 -->
                 <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
                 <button class="btn btn-load" onclick="playAll()">播放全部</button>
 
-                <!-- 已保存的单词表（已移入，支持单个词表展开/收起） -->
                 <div class="word-list">
                     <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
                     <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
@@ -447,7 +450,7 @@
             </div>
         </div>
 
-        <!-- 当前听写单词列表（保留原位置） -->
+        <!-- 当前听写单词列表 -->
         <div class="word-list">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">当前听写单词列表 👇</h2>
             <div id="statusInfo" class="status-info">📱 点击单词播放发音</div>
@@ -460,7 +463,14 @@
         let audioContext, speechSynthesisAvailable = false, voices = [];
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
-        let playWords = []; // 存储播放用的单词数组（支持随机）
+        let playWords = [];
+        let isWeChatBrowser = false;
+
+        // 检测是否为微信浏览器
+        function checkWeChat() {
+            const ua = navigator.userAgent.toLowerCase();
+            return ua.indexOf('micromessenger') !== -1;
+        }
 
         // 折叠/展开 总词库
         function toggleWholeLibrary(el){
@@ -475,7 +485,7 @@
             }
         }
 
-        // 折叠/展开 自定义输入区（新增）
+        // 折叠/展开 自定义输入区
         function toggleCustomLibrary(el){
             let innerBox = el.nextElementSibling;
             let btnText = el.querySelector(".main-fold-btn");
@@ -520,6 +530,9 @@
         // 初始化音频上下文
         function initAudioContext(){
             if(!audioContext) audioContext = new (window.AudioContext||window.webkitAudioContext)();
+            if(audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
         }
 
         // 语速滑块显示
@@ -540,9 +553,18 @@
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
 
-        // 语音播报核心函数
+        // 语音播报核心函数（微信优化版）
         function speakWord(enWord, cnWord, callback=null){
-            if(!speechSynthesisAvailable){alert("当前浏览器不支持语音，推荐使用UC浏览器");return;}
+            if(!speechSynthesisAvailable){
+                alert("当前浏览器不支持语音，推荐使用UC浏览器或Chrome浏览器");
+                return;
+            }
+            
+            // 微信浏览器强制重新获取语音列表
+            if(isWeChatBrowser && voices.length === 0) {
+                voices = window.speechSynthesis.getVoices();
+            }
+            
             const mode = getPlayMode();
             const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
             const repeat = parseInt(document.getElementById('repeatCount').value)||1;
@@ -571,12 +593,18 @@
                 
                 let targetVoice;
                 if(item.lang === "zh-CN"){
-                    targetVoice = voices.find(v=>v.lang.startsWith("zh")) || voices[0];
+                    targetVoice = voices.find(v=>v.lang.includes("zh")) || voices[0];
                 }else{
-                    targetVoice = voices.find(v=>v.lang.startsWith("en")) || voices[0];
+                    targetVoice = voices.find(v=>v.lang.includes("en")) || voices[0];
                 }
                 if(targetVoice) utt.voice = targetVoice;
-                utt.onend = ()=>setTimeout(speakOnce,300);
+                
+                utt.onend = ()=>setTimeout(speakOnce, 300);
+                utt.onerror = (e)=>{
+                    console.error("语音错误:", e);
+                    setTimeout(speakOnce, 500);
+                };
+                
                 window.speechSynthesis.speak(utt);
             }
             speakOnce();
@@ -605,10 +633,10 @@
             wordCnMap.clear();
             enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
             loadWords();
-            setTimeout(playAll,500);
+            setTimeout(playAll, 500);
         }
 
-        // 数组随机打乱（Fisher-Yates算法）
+        // 数组随机打乱
         function shuffleArray(arr) {
             let newArr = [...arr];
             for (let i = newArr.length - 1; i > 0; i--) {
@@ -618,7 +646,7 @@
             return newArr;
         }
 
-        // 播放全部（支持顺序/随机）
+        // 播放全部
         function playAll(){
             if(isPlayingAll){
                 window.speechSynthesis.cancel();
@@ -632,7 +660,6 @@
             let originalWords = raw.split('\n').filter(w=>w.trim());
             const order = getPlayOrder();
             
-            // 根据顺序/随机生成播放数组
             playWords = order === "random" ? shuffleArray(originalWords) : originalWords;
             
             if(!playWords.length)return;
@@ -657,7 +684,7 @@
             nextPlay();
         }
 
-        // 保存单词表（包含顺序/随机设置）
+        // 保存单词表
         function saveWordsWithSettings(){
             let input = document.getElementById('wordInput').value.trim();
             let title = document.getElementById('listTitle').value.trim();
@@ -678,7 +705,6 @@
             localStorage.setItem('dictationWords',lines.join('\n'));
             localStorage.setItem('currentSettings',JSON.stringify(set));
             
-            // 自定义单词默认中文为空
             wordCnMap.clear();
             lines.forEach(w=>wordCnMap.set(w,""));
             
@@ -711,7 +737,7 @@
             });
         }
 
-        // ✅ 加载已保存词表（修改为支持单个词表展开/收起）
+        // 加载已保存词表
         function loadSavedLists(){
             let box = document.getElementById('savedLists');
             box.innerHTML="";let has=false;
@@ -720,15 +746,12 @@
                 if(key.startsWith("wordList_")){
                     has=true;
                     let name = key.slice(9);
-                    // 获取词表的单词数据
                     let data = JSON.parse(localStorage.getItem(key));
                     let words = data.words.split('\n').filter(w=>w.trim());
                     
-                    // 创建折叠结构
                     let details = document.createElement("details");
                     details.className = "saved-item-details";
                     
-                    // 折叠标题（词表名+按钮）
                     let summary = document.createElement("summary");
                     summary.className = "saved-item-summary";
                     summary.innerHTML = `
@@ -739,7 +762,6 @@
                         </div>
                     `;
                     
-                    // 折叠内容（单词列表）
                     let wordListDiv = document.createElement("div");
                     wordListDiv.className = "saved-word-list";
                     words.forEach(word=>{
@@ -757,22 +779,19 @@
             if(!has) box.innerHTML='<p class="empty-tip">暂无保存词表</p>';
         }
 
-        // 加载单个词表（恢复所有设置）
+        // 加载单个词表
         function loadList(key){
             let d = JSON.parse(localStorage.getItem(key));
             if(!d||!d.words)return alert("数据损坏");
             localStorage.setItem('dictationWords',d.words);
             localStorage.setItem('currentSettings',JSON.stringify(d.settings));
             
-            // 恢复设置
             document.getElementById('rateSlider').value=d.settings.rate;
             document.getElementById('repeatCount').value=d.settings.repeat;
             document.getElementById('intervalTime').value=d.settings.interval;
             document.getElementById('rateValue').textContent=d.settings.rate;
-            // 恢复顺序/随机
             document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
             
-            // 恢复单词映射
             wordCnMap.clear();
             d.words.split('\n').filter(w=>w.trim()).forEach(w=>wordCnMap.set(w,""));
             
@@ -798,7 +817,6 @@
                 wordCnMap.clear();
                 playWords = [];
                 
-                // 删除所有保存的词表
                 const keysToRemove = [];
                 for(let i=0; i<localStorage.length; i++){
                     const key = localStorage.key(i);
@@ -826,40 +844,80 @@
 
         // 页面加载初始化
         window.onload=()=>{
-            // 先初始化语音可用状态
+            isWeChatBrowser = checkWeChat();
+            
             if('speechSynthesis' in window){
                 speechSynthesisAvailable = true;
-                window.speechSynthesis.onvoiceschanged = ()=>voices=window.speechSynthesis.getVoices();
+                // 预加载语音列表
+                window.speechSynthesis.onvoiceschanged = ()=>{
+                    voices = window.speechSynthesis.getVoices();
+                };
                 voices = window.speechSynthesis.getVoices();
             }
         };
 
-        // 新增：激活按钮点击事件
+        // 终极激活函数（微信专用）
         document.getElementById('activateBtn').addEventListener('click', function() {
-            // 关键：在用户点击事件中立即调用一次语音合成（静音），强制激活API
-            if (speechSynthesisAvailable) {
-                const testUtt = new SpeechSynthesisUtterance('');
-                testUtt.volume = 0; // 静音，不发出任何声音
-                window.speechSynthesis.speak(testUtt);
-                // 重新获取语音列表（微信浏览器需要在用户交互后才能正确获取）
-                voices = window.speechSynthesis.getVoices();
-            }
+            const btn = this;
+            const loadingText = document.getElementById('loadingText');
             
-            // 初始化音频上下文
+            btn.disabled = true;
+            btn.textContent = "正在激活...";
+            loadingText.style.display = "block";
+            
+            // 第一步：初始化音频上下文
             initAudioContext();
             
-            // 平滑隐藏启动弹窗
-            const overlay = document.getElementById('startOverlay');
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                // 显示主界面
-                document.querySelector('.container').style.display = 'block';
-                // 加载保存的设置和词表
-                loadSavedSettings();
-                loadWords();
-                loadSavedLists();
-            }, 500);
+            // 第二步：微信浏览器强制激活 - 播放一个真实的、可听见的短语音
+            if (speechSynthesisAvailable) {
+                // 关键：播放一个非常短的中文语音，确保微信认为这是用户主动触发的
+                const activateUtt = new SpeechSynthesisUtterance('好');
+                activateUtt.volume = 0.3; // 音量调小，不刺耳
+                activateUtt.rate = 2; // 语速加快，几乎听不清
+                activateUtt.lang = "zh-CN";
+                
+                activateUtt.onend = function() {
+                    // 第三步：激活成功后重新获取完整语音列表
+                    voices = window.speechSynthesis.getVoices();
+                    
+                    // 延迟一点时间确保语音引擎完全初始化
+                    setTimeout(() => {
+                        // 隐藏启动弹窗
+                        const overlay = document.getElementById('startOverlay');
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                            document.querySelector('.container').style.display = 'block';
+                            loadSavedSettings();
+                            loadWords();
+                            loadSavedLists();
+                        }, 500);
+                    }, 300);
+                };
+                
+                activateUtt.onerror = function() {
+                    // 备用方案：如果语音失败，直接进入
+                    setTimeout(() => {
+                        const overlay = document.getElementById('startOverlay');
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                            document.querySelector('.container').style.display = 'block';
+                            loadSavedSettings();
+                            loadWords();
+                            loadSavedLists();
+                            alert("语音激活可能不完全，如果没有声音请刷新页面重试");
+                        }, 500);
+                    }, 500);
+                };
+                
+                window.speechSynthesis.speak(activateUtt);
+            } else {
+                alert("您的浏览器不支持语音播报功能");
+                btn.disabled = false;
+                btn.textContent = "🔊 点击激活语音";
+                loadingText.style.display = "none";
+            }
         });
 
         // 页面隐藏时暂停语音
