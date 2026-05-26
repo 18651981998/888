@@ -38,7 +38,7 @@
             padding: 30px 20px;
             border-radius: 12px;
             text-align: center;
-            max-width: 300px;
+            max-width: 320px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         .start-card h2 {
@@ -61,11 +61,19 @@
             color: #999 !important;
             margin-top: 15px !important;
         }
-        .loading-text {
-            color: #2196F3;
+        .status-text {
+            color: #ff9800;
             font-size: 14px;
             margin-top: 10px;
-            display: none;
+            min-height: 20px;
+        }
+        .engine-info {
+            background: #e8f4ff;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #1976D2;
         }
         /* 默认隐藏主容器，激活后显示 */
         .container { 
@@ -289,7 +297,8 @@
             <p>为了确保语音播报正常工作</p>
             <p>请点击下方按钮激活语音</p>
             <button id="activateBtn" class="btn btn-primary activate-btn">🔊 点击激活语音</button>
-            <p id="loadingText" class="loading-text">正在初始化语音引擎...</p>
+            <div id="statusText" class="status-text"></div>
+            <div id="engineInfo" class="engine-info" style="display:none;"></div>
             <p class="tip-text">支持微信、QQ、Chrome、UC等所有浏览器</p>
         </div>
     </div>
@@ -465,11 +474,18 @@
         let wordCnMap = new Map();
         let playWords = [];
         let isWeChatBrowser = false;
+        let useBaiduTTS = false; // 是否使用百度在线TTS
+        let currentAudio = null; // 当前播放的音频对象
 
         // 检测是否为微信浏览器
         function checkWeChat() {
             const ua = navigator.userAgent.toLowerCase();
             return ua.indexOf('micromessenger') !== -1;
+        }
+
+        // 检测是否为iOS设备
+        function isIOS() {
+            return /iPhone|iPad|iPod/i.test(navigator.userAgent);
         }
 
         // 折叠/展开 总词库
@@ -543,6 +559,10 @@
         // 清空播报列表
         function emptyPlayList(){
             if(!confirm("确定要清空当前播报列表吗？")) return;
+            if(currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
             speechSynthesis.cancel();
             isPlayingAll = false; playAllIndex = 0;
             localStorage.removeItem('dictationWords');
@@ -553,29 +573,49 @@
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
 
-        // 语音播报核心函数（微信优化版）
+        // 百度在线TTS函数（纯前端，不需要后端）
+        function speakBaiduTTS(text, lang, callback) {
+            if(currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            // 百度免费TTS接口
+            const ttsUrl = `https://fanyi.baidu.com/gettts?lan=${lang}&text=${encodeURIComponent(text)}&spd=${parseFloat(document.getElementById('rateSlider').value)*5}&source=web`;
+            
+            currentAudio = new Audio(ttsUrl);
+            currentAudio.onended = () => {
+                currentAudio = null;
+                callback && callback();
+            };
+            currentAudio.onerror = (e) => {
+                console.error("百度TTS播放失败:", e);
+                currentAudio = null;
+                callback && callback();
+            };
+            
+            // 解决iOS微信音频播放问题
+            if(isWeChatBrowser() && isIOS()) {
+                currentAudio.play().catch(err => {
+                    console.error("iOS微信音频播放失败:", err);
+                    callback && callback();
+                });
+            } else {
+                currentAudio.play();
+            }
+        }
+
+        // 统一语音播报函数（自动选择引擎）
         function speakWord(enWord, cnWord, callback=null){
-            if(!speechSynthesisAvailable){
-                alert("当前浏览器不支持语音，推荐使用UC浏览器或Chrome浏览器");
-                return;
-            }
-            
-            // 微信浏览器强制重新获取语音列表
-            if(isWeChatBrowser && voices.length === 0) {
-                voices = window.speechSynthesis.getVoices();
-            }
-            
             const mode = getPlayMode();
-            const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
             const repeat = parseInt(document.getElementById('repeatCount').value)||1;
-            window.speechSynthesis.cancel();
             
             let queue = [];
-            if(mode==="en") queue.push({txt:enWord, lang:"en-US", vol:1, pitch:1, rate:baseRate});
-            if(mode==="cn") queue.push({txt:cnWord, lang:"zh-CN", vol:1, pitch:1.05, rate:baseRate*0.95});
+            if(mode==="en") queue.push({txt:enWord, lang:"en"});
+            if(mode==="cn") queue.push({txt:cnWord, lang:"zh"});
             if(mode==="all"){
-                queue.push({txt:enWord, lang:"en-US", vol:1, pitch:1, rate:baseRate});
-                queue.push({txt:cnWord, lang:"zh-CN", vol:1, pitch:1.05, rate:baseRate*0.95});
+                queue.push({txt:enWord, lang:"en"});
+                queue.push({txt:cnWord, lang:"zh"});
             }
             
             let qIdx=0, cnt=0;
@@ -585,27 +625,47 @@
                     if(cnt>=repeat){callback&&callback();return;}
                 }
                 let item = queue[qIdx++];
-                let utt = new SpeechSynthesisUtterance(item.txt);
-                utt.volume = item.vol;
-                utt.pitch = item.pitch;
-                utt.rate = item.rate;
-                utt.lang = item.lang;
                 
-                let targetVoice;
-                if(item.lang === "zh-CN"){
-                    targetVoice = voices.find(v=>v.lang.includes("zh")) || voices[0];
-                }else{
-                    targetVoice = voices.find(v=>v.lang.includes("en")) || voices[0];
+                if(useBaiduTTS) {
+                    // 使用百度在线TTS
+                    speakBaiduTTS(item.txt, item.lang, () => {
+                        setTimeout(speakOnce, 300);
+                    });
+                } else {
+                    // 使用原生语音合成
+                    if(!speechSynthesisAvailable){
+                        alert("当前浏览器不支持语音，已自动切换到在线模式");
+                        useBaiduTTS = true;
+                        speakOnce();
+                        return;
+                    }
+                    
+                    window.speechSynthesis.cancel();
+                    let utt = new SpeechSynthesisUtterance(item.txt);
+                    utt.volume = 1;
+                    utt.pitch = item.lang === "zh" ? 1.05 : 1;
+                    utt.rate = parseFloat(document.getElementById('rateSlider').value)||0.8;
+                    utt.lang = item.lang === "zh" ? "zh-CN" : "en-US";
+                    
+                    let targetVoice;
+                    if(item.lang === "zh"){
+                        targetVoice = voices.find(v=>v.lang.includes("zh")) || voices[0];
+                    }else{
+                        targetVoice = voices.find(v=>v.lang.includes("en")) || voices[0];
+                    }
+                    if(targetVoice) utt.voice = targetVoice;
+                    
+                    utt.onend = ()=>setTimeout(speakOnce, 300);
+                    utt.onerror = (e)=>{
+                        console.error("原生语音错误:", e);
+                        // 原生语音失败，自动切换到百度TTS
+                        useBaiduTTS = true;
+                        document.getElementById('engineInfo').textContent = "当前使用：百度在线语音引擎";
+                        speakOnce();
+                    };
+                    
+                    window.speechSynthesis.speak(utt);
                 }
-                if(targetVoice) utt.voice = targetVoice;
-                
-                utt.onend = ()=>setTimeout(speakOnce, 300);
-                utt.onerror = (e)=>{
-                    console.error("语音错误:", e);
-                    setTimeout(speakOnce, 500);
-                };
-                
-                window.speechSynthesis.speak(utt);
             }
             speakOnce();
         }
@@ -649,6 +709,10 @@
         // 播放全部
         function playAll(){
             if(isPlayingAll){
+                if(currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
                 window.speechSynthesis.cancel();
                 isPlayingAll=false;playAllIndex=0;
                 document.getElementById('statusInfo').textContent="已停止播放";
@@ -810,6 +874,10 @@
         // 清空所有词表
         function clearWords(){
             if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
+                if(currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
                 speechSynthesis.cancel();
                 isPlayingAll = false; playAllIndex = 0;
                 localStorage.removeItem('dictationWords');
@@ -848,7 +916,6 @@
             
             if('speechSynthesis' in window){
                 speechSynthesisAvailable = true;
-                // 预加载语音列表
                 window.speechSynthesis.onvoiceschanged = ()=>{
                     voices = window.speechSynthesis.getVoices();
                 };
@@ -856,33 +923,37 @@
             }
         };
 
-        // 终极激活函数（微信专用）
+        // 终极激活函数（双引擎版）
         document.getElementById('activateBtn').addEventListener('click', function() {
             const btn = this;
-            const loadingText = document.getElementById('loadingText');
+            const statusText = document.getElementById('statusText');
+            const engineInfo = document.getElementById('engineInfo');
             
             btn.disabled = true;
             btn.textContent = "正在激活...";
-            loadingText.style.display = "block";
+            statusText.textContent = "正在初始化语音引擎...";
             
-            // 第一步：初始化音频上下文
+            // 初始化音频上下文
             initAudioContext();
             
-            // 第二步：微信浏览器强制激活 - 播放一个真实的、可听见的短语音
-            if (speechSynthesisAvailable) {
-                // 关键：播放一个非常短的中文语音，确保微信认为这是用户主动触发的
-                const activateUtt = new SpeechSynthesisUtterance('好');
-                activateUtt.volume = 0.3; // 音量调小，不刺耳
-                activateUtt.rate = 2; // 语速加快，几乎听不清
+            // 先尝试原生语音激活
+            if (speechSynthesisAvailable && !isWeChatBrowser()) {
+                // 非微信环境优先使用原生语音
+                const activateUtt = new SpeechSynthesisUtterance('语音已激活');
+                activateUtt.volume = 1;
+                activateUtt.rate = 1;
                 activateUtt.lang = "zh-CN";
                 
                 activateUtt.onend = function() {
-                    // 第三步：激活成功后重新获取完整语音列表
+                    statusText.textContent = "激活成功！";
+                    engineInfo.textContent = "当前使用：浏览器原生语音引擎";
+                    engineInfo.style.display = "block";
+                    
+                    // 重新获取语音列表
                     voices = window.speechSynthesis.getVoices();
                     
-                    // 延迟一点时间确保语音引擎完全初始化
+                    // 进入主界面
                     setTimeout(() => {
-                        // 隐藏启动弹窗
                         const overlay = document.getElementById('startOverlay');
                         overlay.style.opacity = '0';
                         setTimeout(() => {
@@ -892,38 +963,70 @@
                             loadWords();
                             loadSavedLists();
                         }, 500);
-                    }, 300);
+                    }, 1000);
                 };
                 
                 activateUtt.onerror = function() {
-                    // 备用方案：如果语音失败，直接进入
-                    setTimeout(() => {
-                        const overlay = document.getElementById('startOverlay');
-                        overlay.style.opacity = '0';
+                    // 原生语音失败，切换到百度TTS
+                    statusText.textContent = "原生语音不可用，正在切换到在线模式...";
+                    useBaiduTTS = true;
+                    
+                    // 使用百度TTS播放激活提示
+                    speakBaiduTTS("语音已激活", "zh", () => {
+                        statusText.textContent = "激活成功！";
+                        engineInfo.textContent = "当前使用：百度在线语音引擎";
+                        engineInfo.style.display = "block";
+                        
                         setTimeout(() => {
-                            overlay.style.display = 'none';
-                            document.querySelector('.container').style.display = 'block';
-                            loadSavedSettings();
-                            loadWords();
-                            loadSavedLists();
-                            alert("语音激活可能不完全，如果没有声音请刷新页面重试");
-                        }, 500);
-                    }, 500);
+                            const overlay = document.getElementById('startOverlay');
+                            overlay.style.opacity = '0';
+                            setTimeout(() => {
+                                overlay.style.display = 'none';
+                                document.querySelector('.container').style.display = 'block';
+                                loadSavedSettings();
+                                loadWords();
+                                loadSavedLists();
+                            }, 500);
+                        }, 1000);
+                    });
                 };
                 
                 window.speechSynthesis.speak(activateUtt);
             } else {
-                alert("您的浏览器不支持语音播报功能");
-                btn.disabled = false;
-                btn.textContent = "🔊 点击激活语音";
-                loadingText.style.display = "none";
+                // 微信环境直接使用百度TTS
+                statusText.textContent = "检测到微信环境，正在使用在线语音引擎...";
+                useBaiduTTS = true;
+                
+                speakBaiduTTS("语音已激活", "zh", () => {
+                    statusText.textContent = "激活成功！";
+                    engineInfo.textContent = "当前使用：百度在线语音引擎（微信专用）";
+                    engineInfo.style.display = "block";
+                    
+                    setTimeout(() => {
+                        const overlay = document.getElementById('startOverlay');
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                            document.querySelector('.container').style.display = 'block';
+                            loadSavedSettings();
+                            loadWords();
+                            loadSavedLists();
+                        }, 500);
+                    }, 1000);
+                });
             }
         });
 
         // 页面隐藏时暂停语音
         document.addEventListener('visibilitychange',()=>{
-            if(document.hidden&&isPlayingAll) speechSynthesis.pause();
-            else if(isPlayingAll) speechSynthesis.resume();
+            if(document.hidden&&isPlayingAll) {
+                if(currentAudio) currentAudio.pause();
+                speechSynthesis.pause();
+            }
+            else if(isPlayingAll) {
+                if(currentAudio) currentAudio.play();
+                speechSynthesis.resume();
+            }
         });
     </script>
 </body>
