@@ -17,7 +17,9 @@
 }
 body { 
     padding: 15px; 
-    background-color: #f5f5f5; 
+    background-color: #f5f5f5;
+    /* 优化移动端点击，消除300ms延迟 */
+    touch-action: manipulation;
 }
 .container { 
     max-width: 100%; 
@@ -78,7 +80,8 @@ textarea {
     font-size: 16px; 
     font-weight: bold; 
     cursor: pointer; 
-    margin-bottom: 10px; 
+    margin-bottom: 10px;
+    touch-action: manipulation;
 }
 .btn-save { background-color: #2196F3; color: white; }
 .btn-clear { background-color: #f44336; color: white; }
@@ -105,7 +108,7 @@ textarea {
     font-weight: bold; 
     cursor: pointer; 
     text-align: center; 
-    touch-action: manipulation; 
+    touch-action: manipulation;
 }
 .word-btn:active { background-color: #bbdefb; }
 .empty-tip { 
@@ -192,6 +195,7 @@ textarea {
     display:flex; justify-content:space-between; align-items:center;
     padding:12px; background:#e8f4ff; border-radius:6px;
     cursor:pointer; margin-bottom:0;
+    touch-action: manipulation;
 }
 .main-lib-title { font-weight: bold; color:#222; font-size:17px; }
 .main-fold-btn { color:#2196F3; font-size:15px; }
@@ -201,6 +205,7 @@ textarea {
     display:flex; justify-content:space-between; align-items:center;
     padding:10px; background:#f0f7ff; border-radius:4px;
     cursor:pointer; margin:8px 0;
+    touch-action: manipulation;
 }
 .category-title { font-weight: bold; color:#333; font-size:16px; }
 .fold-btn { color:#2196F3; font-size:14px; }
@@ -235,7 +240,7 @@ textarea {
         <strong>💡 使用说明：</strong><br>
         1. 展开词库勾选单词，或手动输入【英文 中文】格式单词<br>
         2. 支持顺序/随机听写、调节语速、播报次数与间隔<br>
-        3. <strong>任意点击/滑动屏幕即可解锁声音</strong>
+        3. 滑动屏幕、展开词库、调整设置均可自动解锁声音
     </div>
 
     <!-- 播报设置区域 -->
@@ -405,18 +410,17 @@ let playTimer = null;
 let audioUnlocked = false;
 let audioCtx = null;
 
-// ===================== 【华为/小米专用】强解锁函数 =====================
+// ===================== 音频核心解锁函数 =====================
 function unlockAudio(){
     if(audioUnlocked) return;
     audioUnlocked = true;
-    console.log("✅ 音频已解锁（华为/小米兼容）");
 
-    // 1. 初始化 AudioContext（底层解锁）
+    // 底层AudioContext解锁（兼容华为/小米WebView）
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {}
 
-    // 2. 先静音播放一次（绕过 WebView 拦截）
+    // 静音预播放绕过拦截
     audioPlayer.muted = true;
     audioPlayer.play().then(()=>{
         audioPlayer.pause();
@@ -424,54 +428,54 @@ function unlockAudio(){
     }).catch(e=>{});
 }
 
-// ========== 【强制】所有交互都解锁（含空白处） ==========
-// 触摸/点击任意位置
-document.addEventListener('touchstart', unlockAudio, { once: true });
-document.addEventListener('click', unlockAudio, { once: true });
+// ========== 页面滑动/滚动 触发解锁（替代全局点击，不影响UI） ==========
+window.addEventListener('scroll', unlockAudio, { once: true });
 
-// 播报设置控件
-document.getElementById('rateSlider').addEventListener('input', function(){
+// ===================== 折叠/展开（UI优先执行，再解锁音频）=====================
+function toggleWholeLibrary(el){
+    // 先执行展开/收起（保证功能可用）
+    let innerBox = el.nextElementSibling;
+    let btnText = el.querySelector(".main-fold-btn");
+    innerBox.classList.toggle("show");
+    btnText.innerText = innerBox.classList.contains("show") ? "收起▲" : "展开▼";
+    // 再解锁声音
     unlockAudio();
+}
+function toggleCustomLibrary(el){
+    let innerBox = el.nextElementSibling;
+    let btnText = el.querySelector(".main-fold-btn");
+    innerBox.classList.toggle("show");
+    btnText.innerText = innerBox.classList.contains("show") ? "收起▲" : "展开▼";
+    unlockAudio();
+}
+function toggleFold(el){
+    let content = el.nextElementSibling;
+    let btn = el.querySelector(".fold-btn");
+    content.classList.toggle("show");
+    btn.innerText = content.classList.contains("show") ? "收起▲" : "展开▼";
+    unlockAudio();
+}
+
+// ===================== 单词勾选操作 =====================
+function selectAllWords(){
+    document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+    unlockAudio();
+}
+function deselectAllWords(){
+    document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+    unlockAudio();
+}
+
+// ===================== 播报设置控件（交互解锁） =====================
+document.getElementById('rateSlider').addEventListener('input', function(){
     document.getElementById('rateValue').textContent = this.value;
+    unlockAudio();
 });
 document.getElementById('repeatCount').addEventListener('input', unlockAudio);
 document.getElementById('intervalTime').addEventListener('input', unlockAudio);
 document.querySelectorAll('input[name="playMode"], input[name="playOrder"]').forEach(radio=>{
     radio.addEventListener('change', unlockAudio);
 });
-
-// ===================== 折叠/展开交互 =====================
-function toggleWholeLibrary(el){
-    unlockAudio();
-    let innerBox = el.nextElementSibling;
-    let btnText = el.querySelector(".main-fold-btn");
-    innerBox.classList.toggle("show");
-    btnText.innerText = innerBox.classList.contains("show") ? "收起▲" : "展开▼";
-}
-function toggleCustomLibrary(el){
-    unlockAudio();
-    let innerBox = el.nextElementSibling;
-    let btnText = el.querySelector(".main-fold-btn");
-    innerBox.classList.toggle("show");
-    btnText.innerText = innerBox.classList.contains("show") ? "收起▲" : "展开▼";
-}
-function toggleFold(el){
-    unlockAudio();
-    let content = el.nextElementSibling;
-    let btn = el.querySelector(".fold-btn");
-    content.classList.toggle("show");
-    btn.innerText = content.classList.contains("show") ? "收起▲" : "展开▼";
-}
-
-// ===================== 单词勾选操作 =====================
-function selectAllWords(){
-    unlockAudio();
-    document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
-}
-function deselectAllWords(){
-    unlockAudio();
-    document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
-}
 
 // ===================== 配置项获取 =====================
 function getPlayMode(){
@@ -489,10 +493,10 @@ function cancelPlay(){
     if(playTimer) clearTimeout(playTimer);
 }
 
-// ===================== 三重TTS音频播放（华为/小米兼容） =====================
+// ===================== 三重TTS音频播放（全浏览器兜底） =====================
 function playVoice(text, isEn=true, callback=null) {
     if(!audioUnlocked){
-        alert("请先点击/滑动屏幕解锁声音");
+        alert("请先滑动屏幕、展开词库或调整设置解锁声音");
         return;
     }
     const speed = document.getElementById('rateSlider').value;
@@ -790,7 +794,7 @@ function emptyPlayList(){
     localStorage.removeItem('dictationWords');
     wordCnMap.clear();
     playWords = [];
-    loadWords();
+    加载单词();
     document.getElementById('statusInfo')textContent="播报列表已清空";
     document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
 }
@@ -798,9 +802,9 @@ function emptyPlayList(){
 // ===================== 页面初始化 =====================
 window.onload=()=>{
     let s = JSON.parse(localStorage.getItem('currentSettings')||null);
-    if(s){
+    如果(s){
         document.getElementById('rateSlider').value=s.rate;
-        document.getElementById('repeatCount')value=srepeat;
+        document.getElementById('repeatCount').value=s.repeat;
         document.getElementById('intervalTime').value=s.interval;
         document.getElementById('rateValue')textContent=srate;
         if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
