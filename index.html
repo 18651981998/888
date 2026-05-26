@@ -18,7 +18,6 @@
 body { 
     padding: 15px; 
     background-color: #f5f5f5;
-    /* 优化移动端点击，消除300ms延迟 */
     touch-action: manipulation;
 }
 .container { 
@@ -132,7 +131,7 @@ textarea {
     margin-bottom: 15px; 
 }
 .saved-list { margin-top: 15px; }
-.saved-item-details {
+.saved-item {
     border: 1px solid #eee;
     border-radius: 4px;
     margin-bottom: 8px;
@@ -145,17 +144,13 @@ textarea {
     padding: 10px 12px;
     background-color: #f9f9f9;
     cursor: pointer;
-    list-style: none;
-}
-.saved-item-summary::-webkit-details-marker {
-    display: none;
 }
 .saved-item-summary::after {
     content: "▼";
     font-size: 12px;
     color: #666;
 }
-.saved-item-details[open] .saved-item-summary::after {
+.saved-item.open .saved-item-summary::after {
     content: "▲";
 }
 .saved-title { font-weight: bold; color: #333; }
@@ -179,13 +174,10 @@ textarea {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    display: none;
 }
-.saved-word-tag {
-    background-color: #f0f7ff;
-    color: #1976D2;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 13px;
+.saved-item.open .saved-word-list {
+    display: flex;
 }
 .word-library, .input-area {
     background: white; padding: 0; border-radius: 8px;
@@ -392,7 +384,6 @@ banana 香蕉"></textarea>
     <source id="audioSource1" type="audio/mpeg">
     <source id="audioSource2" type="audio/mpeg">
     <source id="audioSource3" type="audio/mpeg">
-    
 </div>
 
 <script>
@@ -409,6 +400,20 @@ let audioSources = {
 let playTimer = null;
 let audioUnlocked = false;
 let audioCtx = null;
+let storageAvailable = true;
+
+// ===================== 存储兼容性检查 =====================
+function checkStorage(){
+    try {
+        const testKey = 'storage_test_' + Date.now();
+        localStorage.setItem(testKey, 'test');
+        localStorage.removeItem(testKey);
+        storageAvailable = true;
+    } catch(e) {
+        storageAvailable = false;
+        console.warn("⚠️ localStorage不可用，使用临时存储");
+    }
+}
 
 // ===================== 音频核心解锁函数 =====================
 function unlockAudio(){
@@ -431,7 +436,7 @@ function unlockAudio(){
 // ========== 页面滑动/滚动 触发解锁（替代全局点击，不影响UI） ==========
 window.addEventListener('scroll', unlockAudio, { once: true });
 
-// ===================== 折叠/展开（UI优先执行，再解锁音频）=====================
+// ===================== 折叠/展开（纯JS实现，兼容所有浏览器）=====================
 function toggleWholeLibrary(el){
     // 先执行展开/收起（保证功能可用）
     let innerBox = el.nextElementSibling;
@@ -453,6 +458,12 @@ function toggleFold(el){
     let btn = el.querySelector(".fold-btn");
     content.classList.toggle("show");
     btn.innerText = content.classList.contains("show") ? "收起▲" : "展开▼";
+    unlockAudio();
+}
+
+// ===================== 已保存词表展开/收起（纯JS实现）=====================
+function toggleSavedItem(el){
+    el.closest('.saved-item').classList.toggle('open');
     unlockAudio();
 }
 
@@ -592,8 +603,16 @@ function startDictationFromLibrary(){
         interval:+document.getElementById('intervalTime').value,
         order:getPlayOrder()
     };
-    localStorage.setItem('dictationWords',enList.join("\n"));
-    localStorage.setItem('currentSettings',JSON.stringify(set));
+    
+    // 保存到存储
+    try {
+        if(storageAvailable){
+            localStorage.setItem('dictationWords',enList.join("\n"));
+            localStorage.setItem('currentSettings',JSON.stringify(set));
+        }
+    } catch(e) {
+        console.error("保存失败", e);
+    }
     
     wordCnMap.clear();
     enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
@@ -619,7 +638,7 @@ function playAll(){
         document.getElementById('statusInfo').textContent="已停止播放";
         return;
     }
-    let raw = localStorage.getItem('dictationWords');
+    let raw = storageAvailable ? localStorage.getItem('dictationWords') : null;
     if(!raw){alert("暂无单词");return;}
     
     let originalWords = raw.split('\n').filter(w=>w.trim());
@@ -648,7 +667,7 @@ function playAll(){
     nextPlay();
 }
 
-// ===================== 自定义单词保存（纯手动，无翻译） =====================
+// ===================== 自定义单词保存（增强版，带错误处理） =====================
 async function saveWordsWithSettings(){
     unlockAudio();
     let input = document.getElementById('wordInput').value.trim();
@@ -677,13 +696,29 @@ async function saveWordsWithSettings(){
         order:getPlayOrder()
     };
     let data = {words:wordArr.join('\n'),cnMap,settings:set};
-    localStorage.setItem(`wordList_${title}`,JSON.stringify(data));
-    localStorage.setItem('dictationWords',wordArr.join('\n'));
-    localStorage.setItem('currentSettings',JSON.stringify(set));
+    
+    try {
+        if(storageAvailable){
+            localStorage.setItem(`wordList_${title}`,JSON.stringify(data));
+            localStorage.setItem('dictationWords',wordArr.join('\n'));
+            localStorage.setItem('currentSettings',JSON.stringify(set));
+            alert("保存成功");
+        } else {
+            alert("⚠️ 浏览器存储不可用，已使用临时存储（刷新后丢失）");
+            // 临时存储
+            window.tempWordList = window.tempWordList || {};
+            window.tempWordList[`wordList_${title}`] = data;
+            window.tempDictationWords = wordArr.join('\n');
+            window.tempCurrentSettings = set;
+        }
+    } catch(e) {
+        alert("⚠️ 保存失败：" + e.message);
+        console.error("保存错误", e);
+        return;
+    }
     
     wordCnMap.clear();
     Object.keys(cnMap).forEach(k=>wordCnMap.set(k,cnMap[k]));
-    alert("保存成功");
     loadWords();loadSavedLists();
     document.getElementById('wordInput').value="";
     document.getElementById('listTitle').value="";
@@ -691,7 +726,7 @@ async function saveWordsWithSettings(){
 
 // ===================== 渲染单词列表 =====================
 function loadWords(){
-    let raw = localStorage.getItem('dictationWords');
+    let raw = storageAvailable ? localStorage.getItem('dictationWords') : window.tempDictationWords;
     let wrap = document.getElementById('wordList');
     wrap.innerHTML="";
     if(!raw){
@@ -712,47 +747,93 @@ function loadWords(){
     });
 }
 
-// ===================== 本地存档管理 =====================
+// ===================== 本地存档管理（增强版） =====================
 function loadSavedLists(){
     let box = document.getElementById('savedLists');
     box.innerHTML = "";
     let has = false;
-    for (let i = 0; i < localStorage.length; i++) {
-        let key = localStorage.key(i);
-        if (key.startsWith("wordList_")) {
-            has = true;
-            let name = key.slice(9);
-            let data = JSON.parse(localStorage.getItem(key));
-            let cnMap = data.cnMap || {};
-            let words = data.words ? data.words.split('\n').filter(w => w.trim()) : [];
-            let details = document.createElement("details");
-            details.className = "saved-item-details";
-            let summary = document.createElement("summary");
-            summary.className = "saved-item-summary";
-            summary.innerHTML = `<span class="saved-title">${name}</span><div class="saved-item-actions"><button class="load-btn" onclick="loadList('${key}')">加载</button><button class="delete-btn" onclick="delList('${key}')">删除</button></div>`;
-            let wordListDiv = document.createElement("div");
-            wordListDiv.className = "saved-word-list";
-            words.forEach(word=>{
-                let cn = cnMap[word] || "";
-                let tag = document.createElement("span");
-                tag.className = "saved-word-tag";
-                tag.textContent = `${word} ${cn}`;
-                wordListDiv.appendChild(tag);
-            });
-            details.appendChild(summary);
-            details.appendChild(wordListDiv);
-            box.appendChild(details);
+    let savedLists = {};
+    
+    // 尝试从存储加载
+    if(storageAvailable){
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            if (key.startsWith("wordList_")) {
+                try {
+                    savedLists[key] = JSON.parse(localStorage.getItem(key));
+                } catch(e) {
+                    console.error("解析失败", key, e);
+                }
+            }
         }
+    } else {
+        // 从临时存储加载
+        savedLists = window.tempWordList || {};
     }
+    
+    // 渲染列表
+    Object.keys(savedLists).forEach(key => {
+        has = true;
+        let name = key.slice(9);
+        let data = savedLists[key];
+        let cnMap = data.cnMap || {};
+        let words = data.words ? data.words.split('\n').filter(w => w.trim()) : [];
+        
+        let item = document.createElement("div");
+        item.className = "saved-item";
+        
+        let summary = document.createElement("div");
+        summary.className = "saved-item-summary";
+        summary.innerHTML = `<span class="saved-title">${name}</span><div class="saved-item-actions"><button class="load-btn" onclick="loadList('${key}')">加载</button><button class="delete-btn" onclick="delList('${key}')">删除</button></div>`;
+        summary.onclick = () => toggleSavedItem(summary);
+        
+        let wordListDiv = document.createElement("div");
+        wordListDiv.className = "saved-word-list";
+        words.forEach(word=>{
+            let cn = cnMap[word] || "";
+            let tag = document.createElement("span");
+            tag.className = "saved-word-tag";
+            tag.textContent = `${word} ${cn}`;
+            wordListDiv.appendChild(tag);
+        });
+        
+        item.appendChild(summary);
+        item.appendChild(wordListDiv);
+        box.appendChild(item);
+    });
+    
     if (!has) box.innerHTML = '<p class="empty-tip">暂无保存词表</p>';
 }
 
 function loadList(key){
     unlockAudio();
-    let d = JSON.parse(localStorage.getItem(key));
+    let d;
+    try {
+        if(storageAvailable){
+            d = JSON.parse(localStorage.getItem(key));
+        } else {
+            d = window.tempWordList ? window.tempWordList[key] : null;
+        }
+    } catch(e) {
+        alert("数据损坏：" + e.message);
+        return;
+    }
+    
     if(!d||!d.words)return alert("数据损坏");
-    localStorage.setItem('dictationWords',d.words);
-    localStorage.setItem('currentSettings',JSON.stringify(d.settings));
+    
+    try {
+        if(storageAvailable){
+            localStorage.setItem('dictationWords',d.words);
+            localStorage.setItem('currentSettings',JSON.stringify(d.settings));
+        } else {
+            window.tempDictationWords = d.words;
+            window.tempCurrentSettings = d.settings;
+        }
+    } catch(e) {
+        alert("加载失败：" + e.message);
+        return;
+    }
+    
     document.getElementById('rateSlider').value=d.settings.rate;
     document.getElementById('repeatCount').value=d.settings.repeat;
     document.getElementById('intervalTime').value=d.settings.interval;
@@ -765,25 +846,43 @@ function loadList(key){
 }
 
 function delList(key){
-    if(confirm("确定删除该词表？")){
-        localStorage.removeItem(key);
+    if(!confirm("确定删除该词表？"))return;
+    try {
+        if(storageAvailable){
+            localStorage.removeItem(key);
+        } else {
+            if(window.tempWordList) delete window.tempWordList[key];
+        }
         loadSavedLists();
+    } catch(e) {
+        alert("删除失败：" + e.message);
     }
 }
 
 function clearWords(){
     if(!confirm("确定清空所有词表？不可恢复！"))return;
     cancelPlay();
-    localStorage.removeItem('dictationWords');
-    localStorage.removeItem('currentSettings');
+    try {
+        if(storageAvailable){
+            localStorage.removeItem('dictationWords');
+            localStorage.removeItem('currentSettings');
+            // 删除所有wordList
+            let keys = [];
+            for(let i=0;i<localStorage.length;i++){
+                let k = localStorage.key(i);
+                if(k.startsWith("wordList_")) keys.push(k);
+            }
+            keys.forEach(k=>localStorage.removeItem(k));
+        } else {
+            window.tempDictationWords = null;
+            window.tempCurrentSettings = null;
+            window.tempWordList = {};
+        }
+    } catch(e) {
+        alert("清空失败：" + e.message);
+    }
     wordCnMap.clear();
     playWords = [];
-    let keys = [];
-    for(let i=0;i<localStorage.length;i++){
-        let k = localStorage.key(i);
-        if(k.startsWith("wordList_")) keys.push(k);
-    }
-    keys.forEach(k=>localStorage.removeItem(k));
     loadWords();loadSavedLists();
     document.getElementById('statusInfo').textContent = "所有词表已清空";
 }
@@ -791,22 +890,42 @@ function clearWords(){
 function emptyPlayList(){
     if(!confirm("确定要清空当前播报列表吗？")) return;
     cancelPlay();
-    localStorage.removeItem('dictationWords');
+    try {
+        if(storageAvailable){
+            localStorage.removeItem('dictationWords');
+        } else {
+            window.tempDictationWords = null;
+        }
+    } catch(e) {
+        alert("清空失败：" + e.message);
+    }
     wordCnMap.clear();
     playWords = [];
-    加载单词();
-    document.getElementById('statusInfo')textContent="播报列表已清空";
+    loadWords();
+    document.getElementById('statusInfo').textContent = "播报列表已清空";
     document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
 }
 
 // ===================== 页面初始化 =====================
 window.onload=()=>{
-    let s = JSON.parse(localStorage.getItem('currentSettings')||null);
-    如果(s){
+    checkStorage();
+    
+    let s;
+    try {
+        if(storageAvailable){
+            s = JSON.parse(localStorage.getItem('currentSettings')||null);
+        } else {
+            s = window.tempCurrentSettings || null;
+        }
+    } catch(e) {
+        console.error("解析设置失败", e);
+    }
+    
+    if(s){
         document.getElementById('rateSlider').value=s.rate;
         document.getElementById('repeatCount').value=s.repeat;
         document.getElementById('intervalTime').value=s.interval;
-        document.getElementById('rateValue')textContent=srate;
+        document.getElementById('rateValue').textContent=s.rate;
         if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
     }
     loadWords();loadSavedLists();
