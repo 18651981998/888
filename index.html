@@ -235,7 +235,7 @@ textarea {
         <strong>💡 使用说明：</strong><br>
         1. 展开词库勾选单词，或手动输入【英文 中文】格式单词<br>
         2. 支持顺序/随机听写、调节语速、播报次数与间隔<br>
-        3. <strong>滑动屏幕、调播报设置、点击按钮都会自动解锁声音</strong>
+        3. <strong>任意点击/滑动屏幕即可解锁声音</strong>
     </div>
 
     <!-- 播报设置区域 -->
@@ -403,28 +403,39 @@ let audioSources = {
 };
 let playTimer = null;
 let audioUnlocked = false;
+let audioCtx = null;
 
-// ===================== 核心：解锁音频权限 =====================
+// ===================== 【华为/小米专用】强解锁函数 =====================
 function unlockAudio(){
     if(audioUnlocked) return;
     audioUnlocked = true;
-    console.log("✅ 音频已解锁");
+    console.log("✅ 音频已解锁（华为/小米兼容）");
+
+    // 1. 初始化 AudioContext（底层解锁）
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {}
+
+    // 2. 先静音播放一次（绕过 WebView 拦截）
+    audioPlayer.muted = true;
+    audioPlayer.play().then(()=>{
+        audioPlayer.pause();
+        audioPlayer.muted = false;
+    }).catch(e=>{});
 }
 
-// ========== 【新增】滑动屏幕（touchstart）解锁 ==========
+// ========== 【强制】所有交互都解锁（含空白处） ==========
+// 触摸/点击任意位置
 document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
 
-// ========== 【新增】所有播报设置控件交互解锁 ==========
-// 语速滑块
+// 播报设置控件
 document.getElementById('rateSlider').addEventListener('input', function(){
     unlockAudio();
     document.getElementById('rateValue').textContent = this.value;
 });
-// 播报次数
 document.getElementById('repeatCount').addEventListener('input', unlockAudio);
-// 间隔
 document.getElementById('intervalTime').addEventListener('input', unlockAudio);
-// 单选按钮（播报模式、顺序）
 document.querySelectorAll('input[name="playMode"], input[name="playOrder"]').forEach(radio=>{
     radio.addEventListener('change', unlockAudio);
 });
@@ -478,10 +489,10 @@ function cancelPlay(){
     if(playTimer) clearTimeout(playTimer);
 }
 
-// ===================== 三重TTS音频播放（全浏览器兜底） =====================
+// ===================== 三重TTS音频播放（华为/小米兼容） =====================
 function playVoice(text, isEn=true, callback=null) {
     if(!audioUnlocked){
-        alert("请先滑动屏幕或调整设置解锁声音");
+        alert("请先点击/滑动屏幕解锁声音");
         return;
     }
     const speed = document.getElementById('rateSlider').value;
@@ -780,7 +791,7 @@ function emptyPlayList(){
     wordCnMap.clear();
     playWords = [];
     loadWords();
-    document.getElementById('statusInfo').textContent = "播报列表已清空";
+    document.getElementById('statusInfo')textContent="播报列表已清空";
     document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
 }
 
@@ -789,9 +800,9 @@ window.onload=()=>{
     let s = JSON.parse(localStorage.getItem('currentSettings')||null);
     if(s){
         document.getElementById('rateSlider').value=s.rate;
-        document.getElementById('repeatCount').value=s.repeat;
+        document.getElementById('repeatCount')value=srepeat;
         document.getElementById('intervalTime').value=s.interval;
-        document.getElementById('rateValue').textContent=s.rate;
+        document.getElementById('rateValue')textContent=srate;
         if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
     }
     loadWords();loadSavedLists();
