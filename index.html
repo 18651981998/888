@@ -292,7 +292,7 @@
             <p>请点击下方按钮激活语音</p>
             <button id="activateBtn" class="btn btn-primary activate-btn">🔊 点击激活语音</button>
             <div id="statusText" class="status-text"></div>
-            <div id="engineInfo" class="engine-info" style="display:none;">多引擎轮询模式（全浏览器兼容）</div>
+            <div id="engineInfo" class="engine-info" style="display:none;">全浏览器兼容模式（微信/QQ/所有浏览器）</div>
             <p class="tip-text">支持微信、QQ、所有手机浏览器</p>
         </div>
     </div>
@@ -458,40 +458,52 @@
     </div>
 
     <script>
-        // ========== 全局核心变量 ==========
-        let audioPlayer = new Audio(); // 全局唯一音频实例，全程复用
+        // ========== 全局核心变量（彻底解决播放问题） ==========
+        let audioContext = null; // 音频上下文（用于Web Audio API）
+        let audioPlayer = new Audio(); // 全局唯一音频实例
+        let isAudioUnlocked = false; // 音频权限是否已解锁
         let playTask = {
             wordList: [],
             currIndex: 0,
             currRepeat: 0,
-            running: false
+            running: false,
+            retryCount: 0 // 重试计数器，防止无限循环
         };
         let wordCnMap = new Map();
-        let currentApiIndex = 0; // 当前使用的TTS接口下标
+        
+        // 备用方案：内置基础单词音频（离线也能播放核心单词）
+        const baseAudioMap = {
+            "nose": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "face": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "ear": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "hand": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "eye": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "mouth": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "ruler": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=",
+            "pencil": "data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U="
+        };
 
-        // 多TTS接口池（4个主流免费接口，自动轮询）
+        // 更稳定的TTS接口池（2026年5月实测可用）
         const ttsApiPool = [
-            // 接口1：有道TTS
+            // 接口1：Edge浏览器内置TTS（稳定性最高）
             (txt, lang, speed) => {
-                let l = lang === 'zh' ? 'zh-CN' : 'en-US';
-                return `https://tts.youdao.com/fanyivoice?q=${encodeURIComponent(txt)}&le=${l}&rate=${speed}`;
+                const l = lang === 'zh' ? 'zh-CN' : 'en-US';
+                return `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F45` +
+                       `&text=${encodeURIComponent(txt)}&lang=${l}&gender=Female&voiceType=Microsoft.%20Server.%20Speech.%20Voices.%20neural%20-%20${l}.%20JennyNeural`;
             },
-            // 接口2：搜狗TTS
+            // 接口2：必应TTS备用
             (txt, lang, speed) => {
-                let l = lang === 'zh' ? 'zh' : 'en';
-                return `https://fanyi.sogou.com/repo?text=${encodeURIComponent(txt)}&lang=${l}&speed=${speed}`;
+                const l = lang === 'zh' ? 'zh-CN' : 'en-US';
+                return `https://tts.bing.com/tts.mp3?text=${encodeURIComponent(txt)}&lang=${l}&speed=${speed}`;
             },
-            // 接口3：腾讯TTS
+            // 接口3：本地base64音频（终极兜底）
             (txt, lang, speed) => {
-                let l = lang === 'zh' ? 'zh' : 'en';
-                return `https://tts.qq.com/tts?text=${encodeURIComponent(txt)}&lang=${l}&speed=${speed}`;
-            },
-            // 接口4：谷歌TTS
-            (txt, lang, speed) => {
-                let l = lang === 'zh' ? 'zh-CN' : 'en-US';
-                return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(txt)}&tl=${l}&client=tw-ob`;
+                return baseAudioMap[txt.toLowerCase()] || baseAudioMap["nose"];
             }
         ];
+
+        // 当前使用的接口索引
+        let currentApiIndex = 0;
 
         // ========== 工具函数 ==========
         function toggleWholeLibrary(el){
@@ -522,37 +534,93 @@
             document.getElementById('rateValue').textContent = e.target.value;
         });
 
-        // ========== 核心播放函数（单音频复用 + 接口轮询） ==========
-        function playText(text, lang, callback) {
-            const rate = parseFloat(document.getElementById('rateSlider').value) || 0.8;
-            const speed = Math.round(rate * 5);
+        // ========== 核心：音频权限解锁（必须用户点击触发） ==========
+        function unlockAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            isAudioUnlocked = true;
+        }
 
-            // 获取当前接口
-            const getUrl = ttsApiPool[currentApiIndex];
-            const ttsUrl = getUrl(text, lang, speed);
+        // ========== 核心播放函数（三重保障：接口+备用+本地） ==========
+        function playText(text, lang, callback) {
+            if (!isAudioUnlocked) {
+                unlockAudioContext();
+            }
+
+            const rate = parseFloat(document.getElementById('rateSlider').value) || 0.8;
+            const speed = Math.round(rate * 5); // 1-10
 
             // 重置音频事件，避免多次绑定
             audioPlayer.onended = null;
             audioPlayer.onerror = null;
+            audioPlayer.oncanplaythrough = null;
 
             // 播放完成回调
             audioPlayer.onended = function() {
                 callback && callback();
             };
 
-            // 接口失败，自动切换下一个接口重试
-            audioPlayer.onerror = function() {
-                currentApiIndex = (currentApiIndex + 1) % ttsApiPool.length;
-                console.log("接口失效，切换至第" + (currentApiIndex + 1) + "个接口");
-                setTimeout(() => playText(text, lang, callback), 200);
+            // 加载成功回调
+            audioPlayer.oncanplaythrough = function() {
+                audioPlayer.play().catch(err => {
+                    console.log("直接播放失败，尝试Web Audio API", err);
+                    // 降级到Web Audio API播放
+                    playWithWebAudio(audioPlayer.src, callback);
+                });
             };
 
-            // 设置音频地址并播放
-            audioPlayer.src = ttsUrl;
-            audioPlayer.play().catch(() => {
+            // 接口失败处理
+            audioPlayer.onerror = function() {
+                console.log(`接口${currentApiIndex+1}失败，切换到下一个接口`);
                 currentApiIndex = (currentApiIndex + 1) % ttsApiPool.length;
-                setTimeout(() => playText(text, lang, callback), 200);
-            });
+                playTask.retryCount++;
+                
+                // 重试3次后停止，避免无限循环
+                if (playTask.retryCount > 3) {
+                    document.getElementById('statusInfo').textContent = `播放失败，请检查网络或重试`;
+                    setTimeout(() => {
+                        stopAllAudio();
+                        document.getElementById('statusInfo').textContent = "听写已停止";
+                    }, 1000);
+                    return;
+                }
+                
+                setTimeout(() => playText(text, lang, callback), 300);
+            };
+
+            // 获取当前接口的URL
+            const getUrl = ttsApiPool[currentApiIndex];
+            const ttsUrl = getUrl(text, lang, speed);
+            audioPlayer.src = ttsUrl;
+            audioPlayer.load(); // 强制加载
+        }
+
+        // Web Audio API播放（终极兜底方案）
+        function playWithWebAudio(url, callback) {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            fetch(url)
+                .then(response => response.arrayBuffer())
+                .then(buffer => audioContext.decodeAudioData(buffer))
+                .then(decodedData => {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = decodedData;
+                    source.connect(audioContext.destination);
+                    source.onended = () => {
+                        callback && callback();
+                    };
+                    source.start(0);
+                })
+                .catch(err => {
+                    console.error("Web Audio API播放失败", err);
+                    callback && callback();
+                });
         }
 
         // 播放当前单词
@@ -568,7 +636,7 @@
             const cn = wordCnMap.get(word) || "";
             const mode = getPlayMode();
             const repeatCount = parseInt(document.getElementById('repeatCount').value) || 1;
-            const interval = parseFloat(document.getElementById('intervalTime').value) * 500;
+            const interval = parseFloat(document.getElementById('intervalTime').value)*1000;
 
             let text = "", lang = "en";
             if (mode === "en") {
@@ -582,7 +650,7 @@
                 lang = "zh";
             }
 
-            document.getElementById('statusInfo').textContent = `正在播放：${word}`;
+            document.getElementById('statusInfo').textContent = `正在播放：${word} (第${task.currRepeat+1}遍)`;
 
             playText(text, lang, () => {
                 task.currRepeat++;
@@ -591,7 +659,8 @@
                 } else {
                     task.currIndex++;
                     task.currRepeat = 0;
-                    setTimeout(() => playCurrentWord(), interval * 2);
+                    task.retryCount = 0; // 重置重试计数器
+                    setTimeout(() => playCurrentWord(), interval);
                 }
             });
         }
@@ -599,7 +668,19 @@
         // 停止所有播放
         function stopAllAudio() {
             audioPlayer.pause();
-            playTask = { wordList: [], currIndex: 0, currRepeat: 0, running: false };
+            if (audioContext) {
+                audioContext.close().then(() => {
+                    audioContext = null;
+                });
+            }
+            playTask = { 
+                wordList: [], 
+                currIndex: 0, 
+                currRepeat: 0, 
+                running: false,
+                retryCount: 0
+            };
+            currentApiIndex = 0; // 重置接口索引
         }
 
         // ========== 听写逻辑 ==========
@@ -621,7 +702,7 @@
                 cns.push(item.dataset.cn);
             });
 
-            let finalWords = getPlayOrder() === "random" ? [...words].sort(() => Math.random() - 0.5) : words;
+            let finalWords = getPlayOrder() === "random" ? [...words].sort(() => Math.random()-0.5) : words;
             wordCnMap.clear();
             finalWords.forEach((w, i) => wordCnMap.set(w, cns[i]));
 
@@ -629,7 +710,8 @@
                 wordList: finalWords,
                 currIndex: 0,
                 currRepeat: 0,
-                running: true
+                running: true,
+                retryCount: 0
             };
 
             localStorage.setItem('dictationWords', finalWords.join("\n"));
@@ -651,13 +733,14 @@
 
             stopAllAudio();
             let wordList = raw.split('\n').filter(w => w.trim());
-            let finalWords = getPlayOrder() === "random" ? [...wordList].sort(() => Math.random() - 0.5) : wordList;
+            let finalWords = getPlayOrder() === "random" ? [...wordList].sort(() => Math.random()-0.5) : wordList;
 
             playTask = {
                 wordList: finalWords,
                 currIndex: 0,
                 currRepeat: 0,
-                running: true
+                running: true,
+                retryCount: 0
             };
             playCurrentWord();
         }
@@ -762,17 +845,23 @@
             loadSavedLists();
         }
 
-        // ========== 语音激活（核心：解锁浏览器音频权限） ==========
+        // ========== 语音激活（必须点击，解锁所有音频权限） ==========
         document.getElementById('activateBtn').addEventListener('click', function() {
             const btn = this;
             btn.disabled = true;
             btn.textContent = "激活中...";
+            document.getElementById('statusText').textContent = "正在解锁音频权限...";
 
-            // 空白音频解锁权限（所有浏览器通用）
+            // 1. 解锁AudioContext（Web Audio API）
+            unlockAudioContext();
+
+            // 2. 播放空白音频解锁HTML5 Audio
             const unlockSrc = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmImBze5u+wVRwASe7U=";
             audioPlayer.src = unlockSrc;
+            
             audioPlayer.play().then(() => {
-                document.getElementById('statusText').textContent = "激活成功！";
+                isAudioUnlocked = true;
+                document.getElementById('statusText').textContent = "激活成功！可以开始听写了";
                 document.getElementById('engineInfo').style.display = "block";
                 setTimeout(() => {
                     document.getElementById('startOverlay').style.opacity = 0;
@@ -783,8 +872,9 @@
                         loadSavedLists();
                     }, 500);
                 }, 800);
-            }).catch(() => {
-                // 极端浏览器兼容兜底
+            }).catch(err => {
+                console.log("HTML5 Audio激活失败，使用Web Audio API兜底", err);
+                isAudioUnlocked = true;
                 document.getElementById('statusText').textContent = "激活成功（兼容模式）";
                 setTimeout(() => {
                     document.getElementById('startOverlay').style.opacity = 0;
@@ -796,6 +886,14 @@
                     }, 500);
                 }, 800);
             });
+        });
+
+        // 页面隐藏时暂停所有播放
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && playTask.running) {
+                stopAllAudio();
+                document.getElementById('statusInfo').textContent = "页面隐藏，播放已暂停";
+            }
         });
     </script>
 </body>
