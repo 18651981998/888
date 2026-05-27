@@ -370,7 +370,7 @@
                     <label class="control-label">单词表标题:</label>
                     <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
                 </div>
-                <textarea id="wordInput" placeholder="自定义输入单词，一行一个"></textarea>
+                <textarea id="wordInput" placeholder="格式：英文 中文，一行一个"></textarea>
                 <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
                 <button class="btn btn-load" onclick="playAll()">播放全部</button>
 
@@ -522,6 +522,17 @@
             speakOnce();
         }
 
+        // 听写开始提示音：听写准备开始
+        function speakStartTip(){
+            if(!speechSynthesisAvailable) return;
+            let utt = new SpeechSynthesisUtterance("听写准备开始");
+            utt.lang = "zh-CN";
+            utt.rate = 0.9;
+            let targetVoice = voices.find(v=>v.lang.startsWith("zh")) || voices[0];
+            if(targetVoice) utt.voice = targetVoice;
+            window.speechSynthesis.speak(utt);
+        }
+
         // 播报完成语音提示
         function speakFinishTip(){
             if(!speechSynthesisAvailable) return;
@@ -533,7 +544,7 @@
             window.speechSynthesis.speak(utt);
         }
 
-        // 从词库开始听写（新增保存确认弹窗）
+        // 从词库开始听写（修改：勾选单词同步带入中文）
         function startDictationFromLibrary(){
             let checks = document.querySelectorAll('.library-word:checked');
             let enList=[], cnList=[];
@@ -544,20 +555,24 @@
             if(enList.length===0){alert("请至少勾选一个单词");return;}
             initAudioContext();
 
-            // 核心新增：弹出是否保存到自定义词表
-            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充到自定义区，填写标题即可保存\n取消：直接开始播报");
+            // 弹出是否保存到自定义词表
+            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充单词+释义到自定义区\n取消：直接开始播报");
             
             if(needSave){
-                // 选择是：自动填充单词到自定义输入框
-                document.getElementById('wordInput').value = enList.join('\n');
+                // 【重点修改】拼接 英文 + 空格 + 中文，一行一条
+                let combineList = [];
+                for(let i=0; i<enList.length; i++){
+                    combineList.push(enList[i] + " " + cnList[i]);
+                }
+                document.getElementById('wordInput').value = combineList.join('\n');
+
                 // 自动展开自定义输入区
                 const customHeader = document.querySelector('.input-area .library-main-header');
                 const customInner = document.querySelector('.custom-inner');
                 customInner.classList.add('show');
                 customHeader.querySelector('.main-fold-btn').innerText = '收起▲';
-                // 聚焦标题输入框
                 document.getElementById('listTitle').focus();
-                alert("单词已自动填充，请填写单词表标题后点击「保存单词表」");
+                alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
                 return;
             }
 
@@ -587,7 +602,7 @@
             return newArr;
         }
 
-        // 播放全部（播报完成语音提示）
+        // 播放全部（新增：开头播报「听写准备开始」）
         function playAll(){
             if(isPlayingAll){
                 window.speechSynthesis.cancel();
@@ -606,27 +621,33 @@
             if(!playWords.length)return;
             isPlayingAll=true;playAllIndex=0;
             document.getElementById('statusInfo').textContent=`正在播放 ${playAllIndex+1}/${playWords.length}`;
+
+            // 【重点修改】先播放 听写准备开始
+            speakStartTip();
             
-            function nextPlay(){
-                if(!isPlayingAll||playAllIndex>=playWords.length){
-                    isPlayingAll=false;
-                    document.getElementById('statusInfo').textContent="播放完毕";
-                    speakFinishTip(); // 播报完成语音提示
-                    return;
+            // 延迟等待提示音播完，再开始听写
+            setTimeout(() => {
+                function nextPlay(){
+                    if(!isPlayingAll||playAllIndex>=playWords.length){
+                        isPlayingAll=false;
+                        document.getElementById('statusInfo').textContent="播放完毕";
+                        speakFinishTip(); // 播报完成语音
+                        return;
+                    }
+                    let ew = playWords[playAllIndex].trim();
+                    let cw = wordCnMap.get(ew)||"";
+                    document.getElementById('statusInfo').textContent=`播放：${ew}`;
+                    speakWord(ew,cw,()=>{
+                        playAllIndex++;
+                        let gap = +document.getElementById('intervalTime').value*1000;
+                        setTimeout(nextPlay,gap);
+                    });
                 }
-                let ew = playWords[playAllIndex].trim();
-                let cw = wordCnMap.get(ew)||"";
-                document.getElementById('statusInfo').textContent=`播放：${ew}`;
-                speakWord(ew,cw,()=>{
-                    playAllIndex++;
-                    let gap = +document.getElementById('intervalTime').value*1000;
-                    setTimeout(nextPlay,gap);
-                });
-            }
-            nextPlay();
+                nextPlay();
+            }, 1200);
         }
 
-        // 保存单词表
+        // 保存单词表（支持 英文 中文 格式解析）
         function saveWordsWithSettings(){
             let input = document.getElementById('wordInput').value.trim();
             let title = document.getElementById('listTitle').value.trim();
@@ -647,8 +668,18 @@
             localStorage.setItem('dictationWords',lines.join('\n'));
             localStorage.setItem('currentSettings',JSON.stringify(set));
             
+            // 解析 英文 中文 并存入映射表
             wordCnMap.clear();
-            lines.forEach(w=>wordCnMap.set(w,""));
+            let pureEnList = [];
+            lines.forEach(line=>{
+                let parts = line.split(/\s+/);
+                let en = parts[0];
+                let cn = parts.slice(1).join(" ");
+                pureEnList.push(en);
+                wordCnMap.set(en, cn);
+            });
+            // 刷新当前单词列表（只显示英文按钮）
+            localStorage.setItem('dictationWords', pureEnList.join('\n'));
             
             alert("保存成功");
             loadWords();loadSavedLists();
@@ -709,7 +740,7 @@
                     words.forEach(word=>{
                         let tag = document.createElement("span");
                         tag.className = "saved-word-tag";
-                        tag.textContent = word;
+                        tag.textContent=word;
                         wordListDiv.appendChild(tag);
                     });
                     
@@ -721,7 +752,7 @@
             if(!has) box.innerHTML='<p class="empty-tip">暂无保存词表</p>';
         }
 
-        // 加载单个词表
+        // 加载单个词表（解析英文+中文）
         function loadList(key){
             let d = JSON.parse(localStorage.getItem(key));
             if(!d||!d.words)return alert("数据损坏");
@@ -734,8 +765,18 @@
             document.getElementById('rateValue').textContent=d.settings.rate;
             document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
             
+            // 解析中英文映射
             wordCnMap.clear();
-            d.words.split('\n').filter(w=>w.trim()).forEach(w=>wordCnMap.set(w,""));
+            let lines = d.words.split('\n').filter(w=>w.trim());
+            let pureEnList = [];
+            lines.forEach(line=>{
+                let parts = line.split(/\s+/);
+                let en = parts[0];
+                let cn = parts.slice(1).join(" ");
+                pureEnList.push(en);
+                wordCnMap.set(en, cn);
+            });
+            localStorage.setItem('dictationWords', pureEnList.join('\n'));
             
             loadWords();
             alert("词表加载完成");
@@ -780,7 +821,7 @@
                 document.getElementById('repeatCount').value=s.repeat;
                 document.getElementById('intervalTime').value=s.interval;
                 document.getElementById('rateValue').textContent=s.rate;
-                if(s.order) document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
+                if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
             }
             loadWords();loadSavedLists();
         };
