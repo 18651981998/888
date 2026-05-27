@@ -406,8 +406,7 @@
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = []; // 存储播放用的单词数组（支持随机）
-        let voicesLoaded = false; // 语音列表是否加载完成
-        let currentSpeakCancel = null; // 当前语音播报的取消函数
+        let isFirstUserInteraction = true; // 标记是否首次用户交互
 
         // 折叠/展开 总词库
         function toggleWholeLibrary(el){
@@ -464,184 +463,135 @@
             return document.querySelector('input[name="playOrder"]:checked').value;
         }
 
-        // 初始化音频上下文
+        // 初始化音频上下文（兼容UC浏览器）
         function initAudioContext(){
-            if(!audioContext) audioContext = new (window.AudioContext||window.webkitAudioContext)();
+            if(!audioContext) {
+                try {
+                    // UC浏览器需要特定的初始化方式
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioContext = new AudioContext();
+                } catch(e) {
+                    console.log("音频上下文初始化失败，不影响基础语音功能");
+                }
+            }
         }
 
-        // ==================== 核心兼容性修改开始 ====================
-        // 1. 改进语音列表加载逻辑，解决各浏览器加载延迟问题
+        // ==================== 核心兼容性修复开始 ====================
+        // 1. 简化语音列表加载，适配UC浏览器
         if('speechSynthesis' in window){
             speechSynthesisAvailable = true;
-            // 多次尝试获取语音列表，最多10次，每次间隔100ms
-            function loadVoices() {
+            // UC浏览器语音列表加载需要延迟
+            setTimeout(() => {
                 voices = window.speechSynthesis.getVoices();
-                if (voices.length > 0) {
-                    voicesLoaded = true;
-                    console.log("语音列表加载成功，共" + voices.length + "个语音");
-                } else {
-                    setTimeout(loadVoices, 100);
+                if (voices.length === 0) {
+                    // 再次尝试加载
+                    setTimeout(() => {
+                        voices = window.speechSynthesis.getVoices();
+                    }, 500);
                 }
-            }
-            // 同时监听voiceschanged事件和主动轮询
-            window.speechSynthesis.onvoiceschanged = loadVoices;
-            loadVoices(); // 立即尝试第一次
+            }, 300);
+            // 监听voiceschanged事件
+            window.speechSynthesis.onvoiceschanged = () => {
+                voices = window.speechSynthesis.getVoices();
+            };
         }
 
-        // 2. 智能语音匹配函数，优先选择各系统高质量语音
-        function findBestVoice(lang) {
-            if (voices.length === 0) return null;
-            
-            const isChinese = lang.startsWith("zh");
-            const isEnglish = lang.startsWith("en");
-            
-            // 按优先级排序的首选语音名称（覆盖主流手机系统）
-            const preferredChineseVoices = [
-                "Siri", "Apple", "华为", "HMS", "小米", "小爱", "vivo", "Jovi", "OPPO", "小布",
-                "Google 普通话", "Microsoft Huihui", "Microsoft Yaoyao", "讯飞"
-            ];
-            const preferredEnglishVoices = [
-                "Siri", "Apple", "Google US English", "Microsoft Zira", "Microsoft David", "Alex"
-            ];
-            
-            // 第一步：找完全匹配语言代码的语音
-            let candidates = voices.filter(v => v.lang === lang);
-            
-            // 第二步：如果没有完全匹配，找前缀匹配的
-            if (candidates.length === 0) {
-                if (isChinese) {
-                    candidates = voices.filter(v => v.lang.startsWith("zh"));
-                } else if (isEnglish) {
-                    candidates = voices.filter(v => v.lang.startsWith("en"));
-                }
+        // 2. 简化语音匹配，优先使用浏览器默认语音（最稳定）
+        function getDefaultVoice(lang) {
+            // 优先找精确匹配语言
+            let voice = voices.find(v => v.lang === lang);
+            if (!voice) {
+                // 找前缀匹配
+                voice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
             }
-            
-            // 第三步：如果还是没有，返回第一个可用语音
-            if (candidates.length === 0) {
-                return voices[0];
-            }
-            
-            // 第四步：优先选择首选列表中的高质量语音
-            const preferredList = isChinese ? preferredChineseVoices : preferredEnglishVoices;
-            for (const pref of preferredList) {
-                const match = candidates.find(v => v.name.toLowerCase().includes(pref.toLowerCase()));
-                if (match) {
-                    return match;
-                }
-            }
-            
-            // 最后返回第一个候选语音
-            return candidates[0];
+            // 最后返回第一个可用语音
+            return voice || voices[0];
         }
 
-        // 3. 重写语音播报核心函数，解决跨浏览器兼容性问题
+        // 3. 核心语音播报函数 - 完全在用户点击事件中执行
         function speakWord(enWord, cnWord, callback=null){
             if(!speechSynthesisAvailable){
-                alert("当前浏览器不支持语音合成功能，推荐使用Chrome、Edge、Safari或系统自带浏览器");
+                alert("当前浏览器不支持语音合成功能，请使用UC浏览器、Chrome、Safari或系统自带浏览器");
                 return;
             }
             
-            // 如果语音列表还在加载中，等待100ms后重试
-            if (!voicesLoaded) {
-                setTimeout(() => speakWord(enWord, cnWord, callback), 100);
-                return;
-            }
+            // 强制取消所有正在播放的语音（适配UC浏览器）
+            window.speechSynthesis.cancel();
             
             const mode = getPlayMode();
-            // 语速边界值处理：统一限制在0.5-2之间（各浏览器支持范围的交集）
-            let baseRate = parseFloat(document.getElementById('rateSlider').value) || 0.8;
-            baseRate = Math.max(0.5, Math.min(2, baseRate));
-            // 播报次数边界值处理：1-10次
-            const repeat = Math.max(1, Math.min(10, parseInt(document.getElementById('repeatCount').value) || 1));
+            const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
+            const repeat = parseInt(document.getElementById('repeatCount').value)||1;
             
-            // 强制取消所有正在播放的语音（解决安卓部分浏览器cancel不生效的问题）
-            window.speechSynthesis.cancel();
-            // 安卓浏览器需要额外延迟50ms再开始新播报
-            setTimeout(() => {
-                let queue = [];
-                // 根据播报模式构建语音队列
-                if(mode === "en" && enWord) {
-                    queue.push({txt: enWord, lang: "en-US", vol: 1, pitch: 1, rate: baseRate});
+            // 构建语音队列
+            let utterances = [];
+            if(mode === "en" && enWord) {
+                for(let i=0; i<repeat; i++){
+                    let utt = new SpeechSynthesisUtterance(enWord);
+                    utt.lang = "en-US";
+                    utt.rate = baseRate;
+                    utt.volume = 1;
+                    utt.pitch = 1;
+                    utterances.push(utt);
                 }
-                if(mode === "cn" && cnWord) {
-                    // 中文语速稍慢，避免听不清
-                    queue.push({txt: cnWord, lang: "zh-CN", vol: 1, pitch: 1.05, rate: Math.max(0.5, baseRate * 0.9)});
+            }
+            if(mode === "cn" && cnWord) {
+                for(let i=0; i<repeat; i++){
+                    let utt = new SpeechSynthesisUtterance(cnWord);
+                    utt.lang = "zh-CN";
+                    utt.rate = baseRate * 0.9; // 中文稍慢
+                    utt.volume = 1;
+                    utt.pitch = 1.05;
+                    utterances.push(utt);
                 }
-                if(mode === "all") {
-                    if(enWord) queue.push({txt: enWord, lang: "en-US", vol: 1, pitch: 1, rate: baseRate});
-                    if(cnWord) queue.push({txt: cnWord, lang: "zh-CN", vol: 1, pitch: 1.05, rate: Math.max(0.5, baseRate * 0.9)});
+            }
+            if(mode === "all") {
+                for(let i=0; i<repeat; i++){
+                    if(enWord) {
+                        let utt = new SpeechSynthesisUtterance(enWord);
+                        utt.lang = "en-US";
+                        utt.rate = baseRate;
+                        utterances.push(utt);
+                    }
+                    if(cnWord) {
+                        let utt = new SpeechSynthesisUtterance(cnWord);
+                        utt.lang = "zh-CN";
+                        utt.rate = baseRate * 0.9;
+                        utterances.push(utt);
+                    }
                 }
-                
-                if (queue.length === 0) {
+            }
+            
+            // 为每个语音设置默认语音
+            utterances.forEach(utt => {
+                let voice = getDefaultVoice(utt.lang);
+                if(voice) utt.voice = voice;
+            });
+            
+            // 播放队列并处理回调
+            let currentIndex = 0;
+            function playNext() {
+                if(currentIndex >= utterances.length) {
                     callback && callback();
                     return;
                 }
-                
-                let qIdx = 0, cnt = 0;
-                let isCancelled = false;
-                
-                // 内部递归播报函数
-                function speakOnce(){
-                    if(isCancelled || qIdx >= queue.length){
-                        cnt++;
-                        qIdx = 0;
-                        if(cnt >= repeat){
-                            callback && callback();
-                            return;
-                        }
-                    }
-                    
-                    let item = queue[qIdx++];
-                    let utt = new SpeechSynthesisUtterance(item.txt);
-                    utt.volume = item.vol;
-                    // 音调边界值处理：0.5-2之间
-                    utt.pitch = Math.max(0.5, Math.min(2, item.pitch));
-                    utt.rate = item.rate;
-                    utt.lang = item.lang;
-                    
-                    // 使用智能匹配的最佳语音
-                    let targetVoice = findBestVoice(item.lang);
-                    if(targetVoice) {
-                        utt.voice = targetVoice;
-                    }
-                    
-                    // 语音播放完成回调
-                    utt.onend = () => {
-                        if (!isCancelled) {
-                            setTimeout(speakOnce, 300);
-                        }
-                    };
-                    
-                    // 语音播放错误回调
-                    utt.onerror = (e) => {
-                        console.error("语音合成错误:", e);
-                        // 出错时继续播放下一个
-                        if (!isCancelled) {
-                            setTimeout(speakOnce, 300);
-                        }
-                    };
-                    
-                    try {
-                        window.speechSynthesis.speak(utt);
-                    } catch (e) {
-                        console.error("语音播放失败:", e);
-                        // 播放失败时继续下一个
-                        setTimeout(speakOnce, 300);
-                    }
-                }
-                
-                // 提供取消函数，用于外部中断当前播报
-                currentSpeakCancel = () => {
-                    isCancelled = true;
-                    window.speechSynthesis.cancel();
+                let utt = utterances[currentIndex++];
+                // 绑定错误处理
+                utt.onerror = (e) => {
+                    console.error("语音播放错误:", e);
+                    playNext(); // 继续播放下一个
                 };
-                
-                speakOnce();
-            }, 50);
+                utt.onend = () => {
+                    setTimeout(playNext, 300); // 300ms间隔
+                };
+                window.speechSynthesis.speak(utt);
+            }
+            
+            // 开始播放（确保在用户交互中）
+            playNext();
         }
-        // ==================== 核心兼容性修改结束 ====================
+        // ==================== 核心兼容性修复结束 ====================
 
-        // 从词库开始听写（修改：移除setTimeout，解决iOS不能在异步中播放的问题）
+        // 从词库开始听写 - 完全在用户点击事件中执行
         function startDictationFromLibrary(){
             let checks = document.querySelectorAll('.library-word:checked');
             let enList=[], cnList=[];
@@ -655,6 +605,7 @@
             }
             initAudioContext();
             
+            // 保存设置
             let set = {
                 rate:+document.getElementById('rateSlider').value,
                 repeat:+document.getElementById('repeatCount').value,
@@ -664,11 +615,12 @@
             localStorage.setItem('dictationWords',enList.join("\n"));
             localStorage.setItem('currentSettings',JSON.stringify(set));
             
+            // 建立单词映射
             wordCnMap.clear();
             enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
             loadWords();
             
-            // iOS强制要求：必须在用户交互事件中直接调用playAll，不能用setTimeout
+            // 直接调用播放，不使用setTimeout（关键修复！）
             playAll();
         }
 
@@ -676,58 +628,60 @@
         function shuffleArray(arr) {
             let newArr = [...arr];
             for (let i = newArr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
+                const j = Math.floor(Math.random()*(i + 1));
                 [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
             }
             return newArr;
         }
 
-        // 播放全部（修改：增加对currentSpeakCancel的调用）
+        // 播放全部 - 完全在用户点击事件中执行
         function playAll(){
             if(isPlayingAll){
-                // 停止当前正在播放的语音
-                if (currentSpeakCancel) {
-                    currentSpeakCancel();
-                }
                 window.speechSynthesis.cancel();
-                isPlayingAll=false;
-                playAllIndex=0;
-                document.getElementById('statusInfo').textContent="已停止播放";
+                isPlayingAll = false;
+                playAllIndex = 0;
+                document.getElementById('statusInfo').textContent = "已停止播放";
                 return;
             }
+            
             let raw = localStorage.getItem('dictationWords');
             if(!raw){
-                alert("暂无单词");
+                alert("暂无单词，请先勾选或输入保存");
                 return;
             }
             
             let originalWords = raw.split('\n').filter(w=>w.trim());
             const order = getPlayOrder();
             
-            // 根据顺序/随机生成播放数组
+            // 生成播放数组
             playWords = order === "random" ? shuffleArray(originalWords) : originalWords;
             
             if(!playWords.length) return;
-            isPlayingAll=true;
-            playAllIndex=0;
-            document.getElementById('statusInfo').textContent=`正在播放 ${playAllIndex+1}/${playWords.length}`;
+            isPlayingAll = true;
+            playAllIndex = 0;
+            document.getElementById('statusInfo').textContent = `正在播放 ${playAllIndex+1}/${playWords.length}`;
             
+            // 播放下一个单词（递归）
             function nextPlay(){
-                if(!isPlayingAll||playAllIndex>=playWords.length){
-                    isPlayingAll=false;
-                    document.getElementById('statusInfo').textContent="播放完毕";
+                if(!isPlayingAll || playAllIndex >= playWords.length){
+                    isPlayingAll = false;
+                    document.getElementById('statusInfo').textContent = "播放完毕";
                     return;
                 }
+                
                 let ew = playWords[playAllIndex].trim();
-                let cw = wordCnMap.get(ew)||"";
-                document.getElementById('statusInfo').textContent=`播放：${ew}`;
-                speakWord(ew,cw,()=>{
+                let cw = wordCnMap.get(ew) || "";
+                document.getElementById('statusInfo').textContent = `播放：${ew}`;
+                
+                // 直接调用speakWord，不使用异步
+                speakWord(ew, cw, () => {
                     playAllIndex++;
-                    // 间隔时间边界值处理：0.5-10秒
-                    let gap = Math.max(0.5, Math.min(10, +document.getElementById('intervalTime').value)) * 1000;
-                    setTimeout(nextPlay,gap);
+                    let gap = parseFloat(document.getElementById('intervalTime').value)*1000;
+                    setTimeout(nextPlay, gap);
                 });
             }
+            
+            // 立即开始播放（用户点击事件中）
             nextPlay();
         }
 
@@ -780,13 +734,13 @@
                 btn.onclick=()=>{
                     initAudioContext();
                     let cn = wordCnMap.get(word)||"";
-                    speakWord(word,cn);
+                    speakWord(word, cn); // 直接调用，不使用异步
                 };
                 wrap.appendChild(btn);
             });
         }
 
-        // ✅ 加载已保存词表（修改为支持单个词表展开/收起）
+        // 加载已保存词表（支持单个词表展开/收起）
         function loadSavedLists(){
             let box = document.getElementById('savedLists');
             box.innerHTML="";let has=false;
@@ -795,15 +749,12 @@
                 if(key.startsWith("wordList_")){
                     has=true;
                     let name = key.slice(9);
-                    // 获取词表的单词数据
                     let data = JSON.parse(localStorage.getItem(key));
                     let words = data.words.split('\n').filter(w=>w.trim());
                     
-                    // 创建折叠结构
                     let details = document.createElement("details");
                     details.className = "saved-item-details";
                     
-                    // 折叠标题（词表名+按钮）
                     let summary = document.createElement("summary");
                     summary.className = "saved-item-summary";
                     summary.innerHTML = `
@@ -814,7 +765,6 @@
                         </div>
                     `;
                     
-                    // 折叠内容（单词列表）
                     let wordListDiv = document.createElement("div");
                     wordListDiv.className = "saved-word-list";
                     words.forEach(word=>{
@@ -844,7 +794,6 @@
             document.getElementById('repeatCount').value=d.settings.repeat;
             document.getElementById('intervalTime').value=d.settings.interval;
             document.getElementById('rateValue').textContent=d.settings.rate;
-            // 恢复顺序/随机
             document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
             
             // 恢复单词映射
@@ -863,14 +812,10 @@
             }
         }
 
-        // 清空所有词表（修改：增加对currentSpeakCancel的调用）
+        // 清空所有词表
         function clearWords(){
             if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
-                // 停止当前正在播放的语音
-                if (currentSpeakCancel) {
-                    currentSpeakCancel();
-                }
-                speechSynthesis.cancel();
+                window.speechSynthesis.cancel();
                 isPlayingAll = false;
                 playAllIndex = 0;
                 localStorage.removeItem('dictationWords');
@@ -892,14 +837,10 @@
             }
         }
 
-        // 清空播报列表（修改：增加对currentSpeakCancel的调用）
+        // 清空播报列表
         function emptyPlayList(){
             if(!confirm("确定要清空当前播报列表吗？")) return;
-            // 停止当前正在播放的语音
-            if (currentSpeakCancel) {
-                currentSpeakCancel();
-            }
-            speechSynthesis.cancel();
+            window.speechSynthesis.cancel();
             isPlayingAll = false;
             playAllIndex = 0;
             localStorage.removeItem('dictationWords');
@@ -910,24 +851,15 @@
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
 
-        // 浏览器兼容性检测
-        function checkBrowserCompatibility() {
+        // 浏览器兼容性检测与初始化
+        function initApp() {
+            // 检查语音合成支持
             if (!('speechSynthesis' in window)) {
-                document.getElementById('statusInfo').textContent = "⚠️ 当前浏览器不支持语音合成功能";
-                alert("当前浏览器不支持语音合成功能，推荐使用Chrome、Edge、Safari或系统自带浏览器");
-            } else {
-                // 1秒后检测是否有可用语音
-                setTimeout(() => {
-                    if (voices.length === 0) {
-                        document.getElementById('statusInfo').textContent = "⚠️ 未检测到可用语音，请检查系统TTS设置";
-                        alert("未检测到可用语音，请在系统设置中安装并启用中文和英文语音引擎");
-                    }
-                }, 1000);
+                document.getElementById('statusInfo').textContent = "⚠️ 当前浏览器不支持语音合成，请使用UC浏览器、Chrome、Safari或系统自带浏览器";
+                return;
             }
-        }
-
-        // 页面加载初始化
-        window.onload=()=>{
+            
+            // 加载保存的设置
             let s = JSON.parse(localStorage.getItem('currentSettings')||null);
             if(s){
                 document.getElementById('rateSlider').value=s.rate;
@@ -936,28 +868,53 @@
                 document.getElementById('rateValue').textContent=s.rate;
                 if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
             }
+            
             loadWords();
             loadSavedLists();
-            checkBrowserCompatibility(); // 新增：浏览器兼容性检测
-        };
-
-        // 页面隐藏时处理（修改：iOS上pause不生效，直接停止播放）
-        document.addEventListener('visibilitychange',()=>{
-            if(document.hidden && isPlayingAll) {
-                // iOS Safari不支持speechSynthesis.pause()，直接停止播放
-                if (currentSpeakCancel) {
-                    currentSpeakCancel();
+            
+            // 检测系统语音是否可用
+            setTimeout(() => {
+                if (voices.length === 0) {
+                    document.getElementById('statusInfo').textContent = "⚠️ 系统未检测到可用语音，请在设置中启用TTS引擎";
                 }
-                speechSynthesis.cancel();
+            }, 1000);
+        }
+
+        // 页面加载初始化
+        window.onload = initApp;
+
+        // 页面隐藏时停止播放（适配UC浏览器）
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isPlayingAll) {
+                window.speechSynthesis.cancel();
                 isPlayingAll = false;
                 document.getElementById('statusInfo').textContent = "页面隐藏，已停止播放";
             }
         });
 
         // 语速滑块显示
-        document.getElementById('rateSlider').addEventListener('input',e=>{
+        document.getElementById('rateSlider').addEventListener('input', e => {
             document.getElementById('rateValue').textContent = e.target.value;
         });
+
+        // 确保首次用户交互激活语音合成（关键修复！）
+        document.addEventListener('click', () => {
+            if (isFirstUserInteraction) {
+                isFirstUserInteraction = false;
+                // 触发一个空的语音播放，激活语音引擎（UC浏览器需要）
+                if (speechSynthesisAvailable) {
+                    try {
+                        let utt = new SpeechSynthesisUtterance("");
+                        window.speechSynthesis.speak(utt);
+                        setTimeout(() => {
+                            window.speechSynthesis.cancel();
+                        }, 100);
+                    } catch (e) {
+                        console.log("激活语音引擎失败，不影响后续使用");
+                    }
+                }
+            }
+        }, { once: true });
     </script>
 </body>
 </html>
