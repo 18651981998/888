@@ -89,7 +89,7 @@
             background: white; 
             padding: 0; 
             border-radius: 8px; 
-            margin-top:15px;
+            margin-top:15px; 
         }
         .word-btn { 
             display: block; 
@@ -125,7 +125,7 @@
             border: 1px solid #bee5eb; 
             padding: 10px; 
             border-radius: 4px; 
-            margin-bottom: 15px;
+            margin-bottom: 15px; 
         }
         .saved-list { margin-top: 15px; }
         .saved-item-details {
@@ -183,6 +183,7 @@
             border-radius: 4px;
             font-size: 13px;
         }
+
         .word-library, .input-area {
             background: white; padding: 0; border-radius: 8px;
             margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -196,6 +197,7 @@
         .main-fold-btn { color:#2196F3; font-size:15px; }
         .library-inner, .custom-inner { display:none; padding:15px; }
         .library-inner.show, .custom-inner.show { display:block; }
+
         .category-header {
             display:flex; justify-content:space-between; align-items:center;
             padding:10px; background:#f0f7ff; border-radius:4px;
@@ -232,16 +234,17 @@
         <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
-            1. 首次打开<strong>必须先点击页面任意位置</strong>激活语音<br>
-            2. 支持英文/中文/英汉对照、顺序/随机听写<br>
-            3. 勾选单词/自定义输入均可保存、加载、听写
+            1. 点击总标题展开/收起单词库/自定义输入区<br>
+            2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
+            3. 勾选单词/自定义输入均可保存、加载、一键听写<br>
+            4. 可以根据自己的习惯，设置播报参数 👇
         </div>
 
         <div class="controls-area">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">🔊 播报模式设置</h2>
             <div class="play-mode">
                 <label class="mode-radio">
-                    <input type="radio" name="playMode" value="en" checked> 英文
+                    <input type="radio" name="playMode" value="en" checked=""> 英文
                 </label>
                 <label class="mode-radio">
                     <input type="radio" name="playMode" value="cn"> 中文
@@ -254,7 +257,7 @@
             <h2 style="margin:15px 0; color:#333; font-size:18px;">🎲 听写顺序设置</h2>
             <div class="order-mode">
                 <label class="mode-radio">
-                    <input type="radio" name="playOrder" value="normal" checked> 顺序听写
+                    <input type="radio" name="playOrder" value="normal" checked=""> 顺序听写
                 </label>
                 <label class="mode-radio">
                     <input type="radio" name="playOrder" value="random"> 随机听写
@@ -277,6 +280,7 @@
             </div>
         </div>
 
+        <!-- 词库区域 -->
         <div class="word-library">
             <div class="library-main-header" onclick="toggleWholeLibrary(this)">
                 <span class="main-lib-title">📚 何家坳2106班-最新重点单词库</span>
@@ -318,10 +322,11 @@
             </div>
             <div class="library-inner">
                 <div class="library-controls">
-                    <button class="btn-library btn-select-all" onclick="selectAllWords()">全选</button>
-                    <button class="btn-library btn-deselect-all" onclick="deselectAllWords()">全不选</button>
-                    <button class="btn-library btn-primary" onclick="startDictationFromLibrary()">开始听写</button>
+                    <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
+                    <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
+                    <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
                 </div>
+                <!-- 三年级上册 -->
                 <div class="category-wrap">
                     <div class="category-header" onclick="toggleFold(this)">
                         <span class="category-title">三年级上册</span>
@@ -354,6 +359,7 @@
             </div>
         </div>
 
+        <!-- 自定义单词输入 -->
         <div class="input-area">
             <div class="library-main-header" onclick="toggleCustomLibrary(this)">
                 <span class="main-lib-title">✍️ 自定义单词输入</span>
@@ -367,6 +373,7 @@
                 <textarea id="wordInput" placeholder="自定义输入单词，一行一个"></textarea>
                 <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
                 <button class="btn btn-load" onclick="playAll()">播放全部</button>
+
                 <div class="word-list">
                     <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
                     <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
@@ -375,278 +382,319 @@
             </div>
         </div>
 
+        <!-- 当前听写单词列表 -->
         <div class="word-list">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">当前听写单词列表 👇</h2>
-            <div id="statusInfo" class="status-info">📱 首次使用请点击页面任意位置激活语音</div>
+            <div id="statusInfo" class="status-info">📱 点击单词播放发音</div>
             <div id="wordList"><p class="empty-tip">暂无单词，请先勾选或输入保存</p></div>
             <button class="btn btn-empty" onclick="emptyPlayList()" style="margin-top:15px;">清空播报列表</button>
         </div>
     </div>
 
     <script>
-        // 全局变量 - 极简版
-        let isPlayingAll = false;
-        let playAllIndex = 0;
+        let audioContext, speechSynthesisAvailable = false, voices = [];
+        let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = [];
-        let voiceUnlocked = false; // 语音是否已激活
-        let supportSpeech = 'speechSynthesis' in window;
 
-        // ========== 折叠面板函数（保留原有功能） ==========
-        function toggleWholeLibrary(el) {
-            const inner = el.nextElementSibling;
-            const btn = el.querySelector('.main-fold-btn');
-            inner.classList.toggle('show');
-            btn.innerText = inner.classList.contains('show') ? '收起▲' : '展开▼';
+        // 折叠/展开 总词库
+        function toggleWholeLibrary(el){
+            let innerBox = el.nextElementSibling;
+            let btnText = el.querySelector(".main-fold-btn");
+            if(innerBox.classList.contains("show")){
+                innerBox.classList.remove("show");
+                btnText.innerText = "展开▼";
+            }else{
+                innerBox.classList.add("show");
+                btnText.innerText = "收起▲";
+            }
         }
-        function toggleCustomLibrary(el) {
-            const inner = el.nextElementSibling;
-            const btn = el.querySelector('.main-fold-btn');
-            inner.classList.toggle('show');
-            btn.innerText = inner.classList.contains('show') ? '收起▲' : '展开▼';
+
+        // 折叠/展开 自定义输入区
+        function toggleCustomLibrary(el){
+            let innerBox = el.nextElementSibling;
+            let btnText = el.querySelector(".main-fold-btn");
+            if(innerBox.classList.contains("show")){
+                innerBox.classList.remove("show");
+                btnText.innerText = "展开▼";
+            }else{
+                innerBox.classList.add("show");
+                btnText.innerText = "收起▲";
+            }
         }
-        function toggleFold(el) {
-            const content = el.nextElementSibling;
-            const btn = el.querySelector('.fold-btn');
-            content.classList.toggle('show');
-            btn.innerText = content.classList.contains('show') ? '收起▲' : '展开▼';
+
+        // 折叠/展开 分类
+        function toggleFold(el){
+            let content = el.nextElementSibling;
+            let btn = el.querySelector(".fold-btn");
+            if(content.classList.contains("show")){
+                content.classList.remove("show");
+                btn.innerText = "展开▼";
+            }else{
+                content.classList.add("show");
+                btn.innerText = "收起▲";
+            }
         }
-        function selectAllWords() {
-            document.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
+
+        // 全选/全不选
+        function selectAllWords(){
+            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
         }
-        function deselectAllWords() {
-            document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
+        function deselectAllWords(){
+            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
-        function getPlayMode() {
+
+        // 获取播报模式 / 听写顺序
+        function getPlayMode(){
             return document.querySelector('input[name="playMode"]:checked').value;
         }
-        function getPlayOrder() {
+        function getPlayOrder(){
             return document.querySelector('input[name="playOrder"]:checked').value;
         }
 
-        // ========== 核心语音函数【纯原生、无语音绑定、无队列】 ==========
-        /** 单次播报单个文本（最基础兼容写法） */
-        function speakText(text, lang, callback) {
-            if (!supportSpeech) {
-                alert("当前浏览器不支持语音播报");
-                return;
-            }
-            if (!voiceUnlocked) {
-                alert("请先点击页面任意位置激活语音");
-                return;
-            }
+        // 初始化语音
+        function initAudioContext(){
+            if(!audioContext) audioContext = new (window.AudioContext||window.webkitAudioContext)();
+        }
+        if('speechSynthesis' in window){
+            speechSynthesisAvailable = true;
+            window.speechSynthesis.onvoiceschanged = ()=>voices=window.speechSynthesis.getVoices();
+            voices = window.speechSynthesis.getVoices();
+        }
 
-            // 停止之前所有语音
+        // 语速滑块显示
+        document.getElementById('rateSlider').addEventListener('input',e=>{
+            document.getElementById('rateValue').textContent = e.target.value;
+        });
+
+        // 清空播报列表
+        function emptyPlayList(){
+            if(!confirm("确定要清空当前播报列表吗？")) return;
+            speechSynthesis.cancel();
+            isPlayingAll = false; playAllIndex = 0;
+            localStorage.removeItem('dictationWords');
+            wordCnMap.clear();
+            playWords = [];
+            loadWords();
+            document.getElementById('statusInfo').textContent = "播报列表已清空";
+            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+        }
+
+        // 语音播报核心函数
+        function speakWord(enWord, cnWord, callback=null){
+            if(!speechSynthesisAvailable){alert("当前浏览器不支持语音，推荐使用UC浏览器");return;}
+            const mode = getPlayMode();
+            const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
+            const repeat = parseInt(document.getElementById('repeatCount').value)||1;
             window.speechSynthesis.cancel();
+            
+            let queue = [];
+            if(mode==="en") queue.push({txt:enWord, lang:"en-US", vol:1, pitch:1, rate:baseRate});
+            if(mode==="cn") queue.push({txt:cnWord, lang:"zh-CN", vol:1, pitch:1.05, rate:baseRate*0.95});
+            if(mode==="all"){
+                queue.push({txt:enWord, lang:"en-US", vol:1, pitch:1, rate:baseRate});
+                queue.push({txt:cnWord, lang:"zh-CN", vol:1, pitch:1.05, rate:baseRate*0.95});
+            }
+            
+            let qIdx=0, cnt=0;
+            function speakOnce(){
+                if(qIdx>=queue.length){
+                    cnt++;qIdx=0;
+                    if(cnt>=repeat){callback&&callback();return;}
+                }
+                let item = queue[qIdx++];
+                let utt = new SpeechSynthesisUtterance(item.txt);
+                utt.volume = item.vol;
+                utt.pitch = item.pitch;
+                utt.rate = item.rate;
+                utt.lang = item.lang;
+                
+                let targetVoice;
+                if(item.lang === "zh-CN"){
+                    targetVoice = voices.find(v=>v.lang.startsWith("zh")) || voices[0];
+                }else{
+                    targetVoice = voices.find(v=>v.lang.startsWith("en")) || voices[0];
+                }
+                if(targetVoice) utt.voice = targetVoice;
+                utt.onend = ()=>setTimeout(speakOnce,300);
+                window.speechSynthesis.speak(utt);
+            }
+            speakOnce();
+        }
 
-            // 读取参数（统一边界，全浏览器通用）
-            let rate = parseFloat(document.getElementById('rateSlider').value) || 0.8;
-            rate = Math.max(0.5, Math.min(2, rate));
-
-            // 创建单个语音对象（关键：不绑定任何voice，让浏览器自动使用默认语音）
-            const utt = new SpeechSynthesisUtterance(text);
-            utt.lang = lang;
-            utt.rate = rate;
-            utt.volume = 1;
-            utt.pitch = 1;
-
-            // 播放完成回调
-            utt.onend = function () {
-                callback && callback();
-            };
-            // 错误兜底
-            utt.onerror = function () {
-                console.log("语音播放异常");
-                callback && callback();
-            };
-
+        // 播报完成语音提示
+        function speakFinishTip(){
+            if(!speechSynthesisAvailable) return;
+            let utt = new SpeechSynthesisUtterance("播报完成");
+            utt.lang = "zh-CN";
+            utt.rate = 0.9;
+            let targetVoice = voices.find(v=>v.lang.startsWith("zh")) || voices[0];
+            if(targetVoice) utt.voice = targetVoice;
             window.speechSynthesis.speak(utt);
         }
 
-        /** 播报单词（英文+中文 逻辑） */
-        function speakWord(en, cn, callback) {
-            const mode = getPlayMode();
-            const repeat = parseInt(document.getElementById('repeatCount').value) || 1;
-            let step = 0, rep = 0;
+        // 从词库开始听写（新增保存确认弹窗）
+        function startDictationFromLibrary(){
+            let checks = document.querySelectorAll('.library-word:checked');
+            let enList=[], cnList=[];
+            checks.forEach(item=>{
+                enList.push(item.value);
+                cnList.push(item.dataset.cn);
+            });
+            if(enList.length===0){alert("请至少勾选一个单词");return;}
+            initAudioContext();
 
-            function nextStep() {
-                // 循环播报次数
-                if (rep >= repeat) {
-                    callback && callback();
-                    return;
-                }
-                // 播报流程：英文 / 中文 / 英汉组合
-                if (mode === "en") {
-                    speakText(en, "en-US", () => { rep++; setTimeout(nextStep, 300); });
-                } else if (mode === "cn") {
-                    speakText(cn, "zh-CN", () => { rep++; setTimeout(nextStep, 300); });
-                } else if (mode === "all") {
-                    if (step === 0) {
-                        speakText(en, "en-US", () => { step++; nextStep(); });
-                    } else {
-                        speakText(cn, "zh-CN", () => { step = 0; rep++; setTimeout(nextStep, 300); });
-                    }
-                }
+            // 核心新增：弹出是否保存到自定义词表
+            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充到自定义区，填写标题即可保存\n取消：直接开始播报");
+            
+            if(needSave){
+                // 选择是：自动填充单词到自定义输入框
+                document.getElementById('wordInput').value = enList.join('\n');
+                // 自动展开自定义输入区
+                const customHeader = document.querySelector('.input-area .library-main-header');
+                const customInner = document.querySelector('.custom-inner');
+                customInner.classList.add('show');
+                customHeader.querySelector('.main-fold-btn').innerText = '收起▲';
+                // 聚焦标题输入框
+                document.getElementById('listTitle').focus();
+                alert("单词已自动填充，请填写单词表标题后点击「保存单词表」");
+                return;
             }
-            nextStep();
+
+            // 选择否：直接开始播报
+            let set = {
+                rate:+document.getElementById('rateSlider').value,
+                repeat:+document.getElementById('repeatCount').value,
+                interval:+document.getElementById('intervalTime').value,
+                order:getPlayOrder()
+            };
+            localStorage.setItem('dictationWords',enList.join("\n"));
+            localStorage.setItem('currentSettings',JSON.stringify(set));
+            
+            wordCnMap.clear();
+            enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
+            loadWords();
+            setTimeout(playAll,500);
         }
 
-        // ========== 语音激活（所有浏览器必备：首次用户点击） ==========
-        function unlockVoice() {
-            if (voiceUnlocked) return;
-            voiceUnlocked = true;
-            document.getElementById('statusInfo').textContent = "✅ 语音已激活，正常使用";
-            // 空播报激活浏览器语音引擎（UC/安卓/iOS通用）
-            if (supportSpeech) {
-                const temp = new SpeechSynthesisUtterance("");
-                window.speechSynthesis.speak(temp);
-                setTimeout(() => window.speechSynthesis.cancel(), 100);
-            }
-        }
-
-        // ========== 听写播放逻辑 ==========
+        // 数组随机打乱
         function shuffleArray(arr) {
-            const a = [...arr];
-            for (let i = a.length - 1; i > 0; i--) {
+            let newArr = [...arr];
+            for (let i = newArr.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
-                [a[i], a[j]] = [a[j], a[i]];
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
             }
-            return a;
+            return newArr;
         }
 
-        function playAll() {
-            if (isPlayingAll) {
+        // 播放全部（播报完成语音提示）
+        function playAll(){
+            if(isPlayingAll){
                 window.speechSynthesis.cancel();
-                isPlayingAll = false;
-                playAllIndex = 0;
-                document.getElementById('statusInfo').textContent = "⏹️ 已停止播放";
+                isPlayingAll=false;playAllIndex=0;
+                document.getElementById('statusInfo').textContent="已停止播放";
                 return;
             }
-            const raw = localStorage.getItem('dictationWords');
-            if (!raw) {
-                alert("暂无单词，请先勾选或输入单词");
-                return;
-            }
-            const words = raw.split('\n').filter(w => w.trim());
+            let raw = localStorage.getItem('dictationWords');
+            if(!raw){alert("暂无单词");return;}
+            
+            let originalWords = raw.split('\n').filter(w=>w.trim());
             const order = getPlayOrder();
-            playWords = order === "random" ? shuffleArray(words) : words;
-
-            if (playWords.length === 0) return;
-            isPlayingAll = true;
-            playAllIndex = 0;
-            document.getElementById('statusInfo').textContent = `▶️ 正在播放 ${playAllIndex+1}/${playWords.length}`;
-
-            function nextPlay() {
-                if (!isPlayingAll || playAllIndex >= playWords.length) {
-                    isPlayingAll = false;
-                    document.getElementById('statusInfo').textContent = "✅ 播放完毕";
+            
+            playWords = order === "random" ? shuffleArray(originalWords) : originalWords;
+            
+            if(!playWords.length)return;
+            isPlayingAll=true;playAllIndex=0;
+            document.getElementById('statusInfo').textContent=`正在播放 ${playAllIndex+1}/${playWords.length}`;
+            
+            function nextPlay(){
+                if(!isPlayingAll||playAllIndex>=playWords.length){
+                    isPlayingAll=false;
+                    document.getElementById('statusInfo').textContent="播放完毕";
+                    speakFinishTip(); // 播报完成语音提示
                     return;
                 }
-                const word = playWords[playAllIndex].trim();
-                const cn = wordCnMap.get(word) || "";
-                document.getElementById('statusInfo').textContent = `播放：${word}`;
-
-                speakWord(word, cn, () => {
+                let ew = playWords[playAllIndex].trim();
+                let cw = wordCnMap.get(ew)||"";
+                document.getElementById('statusInfo').textContent=`播放：${ew}`;
+                speakWord(ew,cw,()=>{
                     playAllIndex++;
-                    const gap = parseFloat(document.getElementById('intervalTime').value) * 1000;
-                    setTimeout(nextPlay, gap);
+                    let gap = +document.getElementById('intervalTime').value*1000;
+                    setTimeout(nextPlay,gap);
                 });
             }
             nextPlay();
         }
 
-        function startDictationFromLibrary() {
-            const checks = document.querySelectorAll('.library-word:checked');
-            const enList = [], cnList = [];
-            checks.forEach(item => {
-                enList.push(item.value);
-                cnList.push(item.dataset.cn);
-            });
-            if (enList.length === 0) {
-                alert("请至少勾选一个单词");
-                return;
-            }
-            // 保存数据
-            const set = {
-                rate: +document.getElementById('rateSlider').value,
-                repeat: +document.getElementById('repeatCount').value,
-                interval: +document.getElementById('intervalTime').value,
-                order: getPlayOrder()
+        // 保存单词表
+        function saveWordsWithSettings(){
+            let input = document.getElementById('wordInput').value.trim();
+            let title = document.getElementById('listTitle').value.trim();
+            if(!input){alert("请输入单词");return;}
+            if(!title){alert("请填写词表标题");return;}
+            
+            let lines = input.split('\n').filter(l=>l.trim());
+            if(!lines.length){alert("无有效单词");return;}
+            
+            let set = {
+                rate:+document.getElementById('rateSlider').value,
+                repeat:+document.getElementById('repeatCount').value,
+                interval:+document.getElementById('intervalTime').value,
+                order:getPlayOrder()
             };
-            localStorage.setItem('dictationWords', enList.join('\n'));
-            localStorage.setItem('currentSettings', JSON.stringify(set));
-
+            let data = {words:lines.join('\n'),settings:set};
+            localStorage.setItem(`wordList_${title}`,JSON.stringify(data));
+            localStorage.setItem('dictationWords',lines.join('\n'));
+            localStorage.setItem('currentSettings',JSON.stringify(set));
+            
             wordCnMap.clear();
-            enList.forEach((w, i) => wordCnMap.set(w, cnList[i]));
-            loadWords();
-            playAll();
-        }
-
-        // ========== 本地存储 / 词表管理 ==========
-        function saveWordsWithSettings() {
-            const input = document.getElementById('wordInput').value.trim();
-            const title = document.getElementById('listTitle').value.trim();
-            if (!input) { alert("请输入单词"); return; }
-            if (!title) { alert("请填写词表标题"); return; }
-            const lines = input.split('\n').filter(l => l.trim());
-            if (lines.length === 0) { alert("无有效单词"); return; }
-
-            const set = {
-                rate: +document.getElementById('rateSlider').value,
-                repeat: +document.getElementById('repeatCount').value,
-                interval: +document.getElementById('intervalTime').value,
-                order: getPlayOrder()
-            };
-            const data = { words: lines.join('\n'), settings: set };
-            localStorage.setItem(`wordList_${title}`, JSON.stringify(data));
-            localStorage.setItem('dictationWords', lines.join('\n'));
-            localStorage.setItem('currentSettings', JSON.stringify(set));
-
-            wordCnMap.clear();
-            lines.forEach(w => wordCnMap.set(w, ""));
+            lines.forEach(w=>wordCnMap.set(w,""));
+            
             alert("保存成功");
-            loadWords();
-            loadSavedLists();
-            document.getElementById('wordInput').value = "";
-            document.getElementById('listTitle').value = "";
+            loadWords();loadSavedLists();
+            document.getElementById('wordInput').value="";
+            document.getElementById('listTitle').value="";
         }
 
-        function loadWords() {
-            const raw = localStorage.getItem('dictationWords');
-            const wrap = document.getElementById('wordList');
-            wrap.innerHTML = "";
-            if (!raw) {
-                wrap.innerHTML = '<p class="empty-tip">暂无单词，请先勾选或输入保存</p>';
+        // 加载当前单词列表
+        function loadWords(){
+            let raw = localStorage.getItem('dictationWords');
+            let wrap = document.getElementById('wordList');
+            wrap.innerHTML="";
+            if(!raw){
+                wrap.innerHTML='<p class="empty-tip">暂无单词，请先勾选或输入保存</p>';
                 return;
             }
-            const words = raw.split('\n').filter(w => w.trim());
-            words.forEach(word => {
-                const btn = document.createElement('button');
-                btn.className = "word-btn";
-                btn.textContent = word;
-                btn.onclick = () => {
-                    const cn = wordCnMap.get(word) || "";
-                    speakWord(word, cn);
+            let words = raw.split('\n').filter(w=>w.trim());
+            words.forEach(word=>{
+                let btn = document.createElement('button');
+                btn.className="word-btn";
+                btn.textContent=word;
+                btn.onclick=()=>{
+                    initAudioContext();
+                    let cn = wordCnMap.get(word)||"";
+                    speakWord(word,cn);
                 };
                 wrap.appendChild(btn);
             });
         }
 
-        function loadSavedLists() {
-            const box = document.getElementById('savedLists');
-            box.innerHTML = "";
-            let hasList = false;
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.startsWith("wordList_")) {
-                    hasList = true;
-                    const name = key.slice(9);
-                    const data = JSON.parse(localStorage.getItem(key));
-                    const words = data.words.split('\n').filter(w => w.trim());
-
-                    const details = document.createElement("details");
+        // 加载已保存词表
+        function loadSavedLists(){
+            let box = document.getElementById('savedLists');
+            box.innerHTML="";let has=false;
+            for(let i=0;i<localStorage.length;i++){
+                let key = localStorage.key(i);
+                if(key.startsWith("wordList_")){
+                    has=true;
+                    let name = key.slice(9);
+                    let data = JSON.parse(localStorage.getItem(key));
+                    let words = data.words.split('\n').filter(w=>w.trim());
+                    
+                    let details = document.createElement("details");
                     details.className = "saved-item-details";
-                    const summary = document.createElement("summary");
+                    
+                    let summary = document.createElement("summary");
                     summary.className = "saved-item-summary";
                     summary.innerHTML = `
                         <span class="saved-title">${name}</span>
@@ -655,115 +703,93 @@
                             <button class="delete-btn" onclick="delList('${key}')">删除</button>
                         </div>
                     `;
-                    const wordDiv = document.createElement("div");
-                    wordDiv.className = "saved-word-list";
-                    words.forEach(w => {
-                        const tag = document.createElement("span");
+                    
+                    let wordListDiv = document.createElement("div");
+                    wordListDiv.className = "saved-word-list";
+                    words.forEach(word=>{
+                        let tag = document.createElement("span");
                         tag.className = "saved-word-tag";
-                        tag.textContent = w;
-                        wordDiv.appendChild(tag);
+                        tag.textContent = word;
+                        wordListDiv.appendChild(tag);
                     });
+                    
                     details.appendChild(summary);
-                    details.appendChild(wordDiv);
+                    details.appendChild(wordListDiv);
                     box.appendChild(details);
                 }
             }
-            if (!hasList) box.innerHTML = '<p class="empty-tip">暂无保存词表</p>';
+            if(!has) box.innerHTML='<p class="empty-tip">暂无保存词表</p>';
         }
 
-        function loadList(key) {
-            const d = JSON.parse(localStorage.getItem(key));
-            if (!d || !d.words) return alert("数据损坏");
-            localStorage.setItem('dictationWords', d.words);
-            localStorage.setItem('currentSettings', JSON.stringify(d.settings));
-
-            document.getElementById('rateSlider').value = d.settings.rate;
-            document.getElementById('repeatCount').value = d.settings.repeat;
-            document.getElementById('intervalTime').value = d.settings.interval;
-            document.getElementById('rateValue').textContent = d.settings.rate;
+        // 加载单个词表
+        function loadList(key){
+            let d = JSON.parse(localStorage.getItem(key));
+            if(!d||!d.words)return alert("数据损坏");
+            localStorage.setItem('dictationWords',d.words);
+            localStorage.setItem('currentSettings',JSON.stringify(d.settings));
+            
+            document.getElementById('rateSlider').value=d.settings.rate;
+            document.getElementById('repeatCount').value=d.settings.repeat;
+            document.getElementById('intervalTime').value=d.settings.interval;
+            document.getElementById('rateValue').textContent=d.settings.rate;
             document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
-
+            
             wordCnMap.clear();
-            d.words.split('\n').filter(w => w.trim()).forEach(w => wordCnMap.set(w, ""));
+            d.words.split('\n').filter(w=>w.trim()).forEach(w=>wordCnMap.set(w,""));
+            
             loadWords();
             alert("词表加载完成");
         }
 
-        function delList(key) {
-            if (confirm("确定删除该词表？")) {
+        // 删除词表
+        function delList(key){
+            if(confirm("确定删除该词表？")){
                 localStorage.removeItem(key);
                 loadSavedLists();
             }
         }
 
-        function clearWords() {
-            if (confirm("确定清空所有词表？此操作不可恢复！")) {
-                window.speechSynthesis.cancel();
-                isPlayingAll = false;
-                playAllIndex = 0;
+        // 清空所有词表
+        function clearWords(){
+            if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
+                speechSynthesis.cancel();
+                isPlayingAll = false; playAllIndex = 0;
                 localStorage.removeItem('dictationWords');
                 localStorage.removeItem('currentSettings');
                 wordCnMap.clear();
                 playWords = [];
-
-                const keys = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (k.startsWith("wordList_")) keys.push(k);
+                
+                const keysToRemove = [];
+                for(let i=0; i<localStorage.length; i++){
+                    const key = localStorage.key(i);
+                    if(key.startsWith("wordList_")) keysToRemove.push(key);
                 }
-                keys.forEach(k => localStorage.removeItem(k));
-
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
                 loadWords();
                 loadSavedLists();
                 document.getElementById('statusInfo').textContent = "所有词表已清空";
             }
         }
 
-        function emptyPlayList() {
-            if (!confirm("确定清空当前播报列表？")) return;
-            window.speechSynthesis.cancel();
-            isPlayingAll = false;
-            playAllIndex = 0;
-            localStorage.removeItem('dictationWords');
-            wordCnMap.clear();
-            playWords = [];
-            loadWords();
-            document.getElementById('statusInfo').textContent = "播报列表已清空";
-            document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
-        }
-
-        // ========== 页面初始化 & 全局事件 ==========
-        window.onload = function () {
-            // 恢复保存的设置
-            const s = JSON.parse(localStorage.getItem('currentSettings') || "null");
-            if (s) {
-                document.getElementById('rateSlider').value = s.rate;
-                document.getElementById('repeatCount').value = s.repeat;
-                document.getElementById('intervalTime').value = s.interval;
-                document.getElementById('rateValue').textContent = s.rate;
-                if (s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
+        // 页面加载初始化
+        window.onload=()=>{
+            let s = JSON.parse(localStorage.getItem('currentSettings')||null);
+            if(s){
+                document.getElementById('rateSlider').value=s.rate;
+                document.getElementById('repeatCount').value=s.repeat;
+                document.getElementById('intervalTime').value=s.interval;
+                document.getElementById('rateValue').textContent=s.rate;
+                if(s.order) document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
             }
-            loadWords();
-            loadSavedLists();
+            loadWords();loadSavedLists();
         };
 
-        // 语速滑块显示
-        document.getElementById('rateSlider').addEventListener('input', e => {
-            document.getElementById('rateValue').textContent = e.target.value;
+        // 页面隐藏时暂停语音
+        document.addEventListener('visibilitychange',()=>{
+            if(document.hidden&&isPlayingAll) speechSynthesis.pause();
+            else if(isPlayingAll) speechSynthesis.resume();
         });
-
-        // 页面切后台停止播放
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && isPlayingAll) {
-                window.speechSynthesis.cancel();
-                isPlayingAll = false;
-                document.getElementById('statusInfo').textContent = "页面隐藏，已停止播放";
-            }
-        });
-
-        // 监听点击/触摸，全局激活语音（所有浏览器通用）
-        document.addEventListener('click', unlockVoice, { once: true });
-        document.addEventListener('touchstart', unlockVoice, { once: true });
     </script>
 </body>
 </html>
