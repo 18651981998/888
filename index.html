@@ -9,6 +9,7 @@
     <meta name="theme-color" content="#2196F3">
     <meta name="google" content="notranslate">
     <style>
+        /* 原有样式保持不变 */
         * { 
             margin: 0; 
             padding: 0; 
@@ -238,8 +239,8 @@
             <strong>💡 使用说明：</strong><br>
             1. 点击总标题展开/收起单词库/自定义输入区<br>
             2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
-            3. 勾选单词/自定义输入均可保存、加载、一键听写<br>
-            4. 首次使用请先点击页面任意位置激活语音功能 👇
+            3. 首次使用必须先点击页面任意位置激活语音功能<br>
+            4. 可以根据自己的习惯，设置播报参数 👇
         </div>
 
         <div class="controls-area">
@@ -395,7 +396,7 @@
         <!-- 当前听写单词列表（保留原位置） -->
         <div class="word-list">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">当前听写单词列表 👇</h2>
-            <div id="statusInfo" class="status-info">📱 首次使用请先点击页面任意位置激活语音</div>
+            <div id="statusInfo" class="status-info">📱 首次使用必须先点击页面任意位置激活语音</div>
             <div id="wordList"><p class="empty-tip">暂无单词，请先勾选或输入保存</p></div>
             <button class="btn btn-empty" onclick="emptyPlayList()" style="margin-top:15px;">清空播报列表</button>
         </div>
@@ -407,8 +408,11 @@
         let wordCnMap = new Map();
         let playWords = []; // 存储播放用的单词数组（支持随机）
         let isVoiceUnlocked = false; // 标记语音是否已解锁（首次用户交互）
-        let voiceLoadAttempts = 0; // 语音列表加载尝试次数
-        const MAX_VOICE_LOAD_ATTEMPTS = 10; // 最大加载尝试次数
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent); // iOS设备检测
+        let isUC = /UCBrowser/.test(navigator.userAgent); // UC浏览器检测
+        let voiceLoadTimer = null; // 语音列表加载定时器
+        const MAX_VOICE_LOAD_ATTEMPTS = 15; // 最大加载尝试次数
+        let voiceLoadAttempts = 0; // 当前加载尝试次数
 
         // 折叠/展开 总词库
         function toggleWholeLibrary(el){
@@ -479,14 +483,44 @@
         }
 
         // ==================== 核心全浏览器兼容方案 ====================
-        // 1. 语音列表加载 - 轮询+事件监听双重保障
+        // 1. 浏览器与系统检测
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            if (isUC) {
+                document.getElementById('statusInfo').textContent = "📱 UC浏览器：首次点击激活语音后使用";
+            } else if (isIOS) {
+                document.getElementById('statusInfo').textContent = "📱 iOS Safari：仅支持系统默认语音，需点击激活";
+            } else if (/HuaweiBrowser/.test(ua)) {
+                document.getElementById('statusInfo').textContent = "📱 华为浏览器：使用HMS语音引擎";
+            } else if (/MiuiBrowser/.test(ua)) {
+                document.getElementById('statusInfo').textContent = "📱 小米浏览器：使用小爱同学语音";
+            } else if (/OPPO/.test(ua)) {
+                document.getElementById('statusInfo').textContent = "📱 OPPO浏览器：使用小布语音";
+            } else if (/vivo/.test(ua)) {
+                document.getElementById('statusInfo').textContent = "📱 vivo浏览器：使用Jovi语音";
+            }
+        }
+
+        // 2. 语音列表加载 - 针对不同浏览器的差异化策略
         function initSpeechSynthesis() {
             if('speechSynthesis' in window){
                 speechSynthesisAvailable = true;
-                // 监听voiceschanged事件
-                window.speechSynthesis.onvoiceschanged = loadVoices;
-                // 立即开始加载语音列表
-                loadVoices();
+                detectBrowser();
+                
+                // iOS Safari特殊处理：不依赖语音列表，直接使用默认语音
+                if (isIOS) {
+                    voices = [{lang: 'zh-CN', name: 'Siri 中文'}, {lang: 'en-US', name: 'Siri 英文'}];
+                    return;
+                }
+                
+                // UC浏览器特殊处理：延迟加载+多次尝试
+                if (isUC) {
+                    setTimeout(loadVoices, 500);
+                } else {
+                    // 其他浏览器：事件监听+轮询
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                    loadVoices();
+                }
             } else {
                 document.getElementById('statusInfo').textContent = "⚠️ 当前浏览器不支持语音合成，请使用UC、Chrome、Safari或系统自带浏览器";
             }
@@ -494,49 +528,79 @@
 
         // 加载语音列表 - 支持多次尝试
         function loadVoices() {
-            voices = window.speechSynthesis.getVoices();
-            if (voices.length > 0) {
+            if (isIOS) return; // iOS不需要加载语音列表
+            
+            const newVoices = window.speechSynthesis.getVoices();
+            if (newVoices.length > 0 && newVoices.length !== voices.length) {
+                voices = newVoices;
                 console.log("语音列表加载成功，共" + voices.length + "个语音");
-                document.getElementById('statusInfo').textContent = "📱 点击单词播放发音";
+                if (!isVoiceUnlocked) {
+                    document.getElementById('statusInfo').textContent = "📱 点击页面任意位置激活语音功能";
+                }
+                clearTimeout(voiceLoadTimer);
+                voiceLoadAttempts = 0;
             } else if (voiceLoadAttempts < MAX_VOICE_LOAD_ATTEMPTS) {
                 voiceLoadAttempts++;
-                setTimeout(loadVoices, 200); // 每200ms尝试一次
+                voiceLoadTimer = setTimeout(loadVoices, 200); // 每200ms尝试一次
             } else {
-                console.log("语音列表加载失败，使用默认语音");
-                document.getElementById('statusInfo').textContent = "⚠️ 未检测到可用语音，请检查系统TTS设置";
+                console.log("语音列表加载失败，使用默认语音策略");
+                // 加载失败时提供默认语音
+                voices = [{lang: 'zh-CN', name: '默认中文'}, {lang: 'en-US', name: '默认英文'}];
+                clearTimeout(voiceLoadTimer);
             }
         }
 
-        // 2. 智能语音匹配 - 适配不同系统TTS引擎
+        // 3. 智能语音匹配 - 针对不同系统和浏览器的语音引擎
         function getBestVoice(lang) {
+            // iOS直接返回默认语音，不进行复杂匹配
+            if (isIOS) {
+                return voices.find(v => v.lang === lang) || voices[0];
+            }
+            
             if (voices.length === 0) return null;
             
-            // 1. 优先精确匹配语言代码
+            // 1. 优先匹配系统特定语音引擎
+            const systemVoices = {
+                'Huawei': ['华为', 'HMS', '科大讯飞'],
+                'Xiaomi': ['小米', '小爱', 'XiaoAi'],
+                'OPPO': ['OPPO', '小布', 'Breeno'],
+                'vivo': ['vivo', 'Jovi'],
+                'UC': ['UC', '灵犀'],
+                'iOS': ['Siri']
+            };
+            
+            // 检测当前系统
+            let systemType = '';
+            const ua = navigator.userAgent;
+            if (/Huawei/.test(ua)) systemType = 'Huawei';
+            else if (/Miui/.test(ua)) systemType = 'Xiaomi';
+            else if (/OPPO/.test(ua)) systemType = 'OPPO';
+            else if (/vivo/.test(ua)) systemType = 'vivo';
+            else if (isUC) systemType = 'UC';
+            else if (isIOS) systemType = 'iOS';
+            
+            // 优先匹配系统语音
+            if (systemType && systemVoices[systemType]) {
+                for (const name of systemVoices[systemType]) {
+                    const voice = voices.find(v => v.name.includes(name) && v.lang.includes(lang.split('-')[0]));
+                    if (voice) return voice;
+                }
+            }
+            
+            // 2. 精确匹配语言代码
             let voice = voices.find(v => v.lang === lang);
             if (voice) return voice;
             
-            // 2. 前缀匹配（如zh-CN匹配zh）
+            // 3. 前缀匹配（如zh-CN匹配zh）
             const langPrefix = lang.split('-')[0];
             voice = voices.find(v => v.lang.startsWith(langPrefix));
             if (voice) return voice;
-            
-            // 3. 系统特定语音优先（针对华为、小米、苹果等）
-            const systemVoices = {
-                'zh-CN': ['华为', '小米', '小爱', 'Siri', 'Jovi', '小布', '讯飞', 'Microsoft'],
-                'en-US': ['Siri', 'Google', 'Microsoft', 'Amazon']
-            };
-            
-            const preferredVoices = systemVoices[lang] || systemVoices['zh-CN'];
-            for (const name of preferredVoices) {
-                voice = voices.find(v => v.name.includes(name));
-                if (voice) return voice;
-            }
             
             // 4. 最后返回第一个可用语音
             return voices[0];
         }
 
-        // 3. 核心语音播报函数 - 全浏览器兼容
+        // 4. 核心语音播报函数 - 全浏览器兼容，无任何异步延迟
         function speakWord(enWord, cnWord, callback=null){
             if(!speechSynthesisAvailable){
                 alert("当前浏览器不支持语音合成功能，请使用UC浏览器、Chrome、Safari或系统自带浏览器");
@@ -553,13 +617,18 @@
             window.speechSynthesis.cancel();
             
             const mode = getPlayMode();
-            // 语速边界控制（0.5-2是所有浏览器支持的范围）
-            const baseRate = Math.max(0.5, Math.min(2, parseFloat(document.getElementById('rateSlider').value)||0.8));
+            // 语速边界控制（根据浏览器调整范围）
+            let baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
+            if (isIOS) baseRate = Math.max(0.5, Math.min(1.5, baseRate)); // iOS限制更严格
+            else baseRate = Math.max(0.5, Math.min(2, baseRate));
+            
             // 播报次数边界控制（1-10次）
             const repeat = Math.max(1, Math.min(10, parseInt(document.getElementById('repeatCount').value)||1));
             
-            // 构建语音队列
+            // 构建语音队列 - 简化设计，避免复杂逻辑
             let utterances = [];
+            
+            // 根据模式添加语音
             if(mode === "en" && enWord) {
                 for(let i=0; i<repeat; i++){
                     let utt = new SpeechSynthesisUtterance(enWord);
@@ -574,7 +643,8 @@
                 for(let i=0; i<repeat; i++){
                     let utt = new SpeechSynthesisUtterance(cnWord);
                     utt.lang = "zh-CN";
-                    utt.rate = Math.max(0.5, baseRate * 0.9); // 中文稍慢，更清晰
+                    // 中文语速稍慢，更清晰，同时适配不同浏览器
+                    utt.rate = isIOS ? Math.max(0.5, baseRate * 0.8) : Math.max(0.5, baseRate * 0.9);
                     utt.volume = 1;
                     utt.pitch = 1.05;
                     utterances.push(utt);
@@ -591,19 +661,21 @@
                     if(cnWord) {
                         let utt = new SpeechSynthesisUtterance(cnWord);
                         utt.lang = "zh-CN";
-                        utt.rate = Math.max(0.5, baseRate * 0.9);
+                        utt.rate = isIOS ? Math.max(0.5, baseRate * 0.8) : Math.max(0.5, baseRate * 0.9);
                         utterances.push(utt);
                     }
                 }
             }
             
-            // 为每个语音设置最佳匹配语音
-            utterances.forEach(utt => {
-                let voice = getBestVoice(utt.lang);
-                if(voice) utt.voice = voice;
-            });
+            // 为每个语音设置最佳匹配语音（iOS跳过，直接使用系统默认）
+            if (!isIOS) {
+                utterances.forEach(utt => {
+                    let voice = getBestVoice(utt.lang);
+                    if(voice) utt.voice = voice;
+                });
+            }
             
-            // 播放队列并处理回调
+            // 播放队列并处理回调 - 最简单直接的实现
             let currentIndex = 0;
             function playNext() {
                 if(currentIndex >= utterances.length) {
@@ -614,6 +686,12 @@
                 // 绑定错误处理（各浏览器都可能出现的播放错误）
                 utt.onerror = (e) => {
                     console.error("语音播放错误:", e);
+                    // 错误处理差异化
+                    if (isUC) {
+                        alert("UC浏览器语音播放失败，请重试或切换其他浏览器");
+                    } else if (isIOS) {
+                        alert("iOS语音播放失败，请检查系统语音设置");
+                    }
                     playNext(); // 继续播放下一个，不中断整个流程
                 };
                 utt.onend = () => {
@@ -632,7 +710,7 @@
             playNext();
         }
 
-        // 4. 首次用户交互解锁语音功能（关键！所有浏览器都需要）
+        // 5. 首次用户交互解锁语音功能（所有浏览器必须！）
         function unlockVoice() {
             if (isVoiceUnlocked) return;
             
@@ -654,7 +732,7 @@
         }
         // ==================== 核心全浏览器兼容方案结束 ====================
 
-        // 从词库开始听写 - 完全在用户点击事件中执行
+        // 从词库开始听写 - 完全在用户点击事件中执行，无任何异步
         function startDictationFromLibrary(){
             let checks = document.querySelectorAll('.library-word:checked');
             let enList=[], cnList=[];
@@ -697,7 +775,7 @@
             return newArr;
         }
 
-        // 播放全部 - 完全在用户点击事件中执行
+        // 播放全部 - 完全在用户点击事件中执行，无任何异步
         function playAll(){
             if(isPlayingAll){
                 window.speechSynthesis.cancel();
@@ -736,11 +814,13 @@
                 let cw = wordCnMap.get(ew) || "";
                 document.getElementById('statusInfo').textContent = `播放：${ew}`;
                 
-                // 直接调用speakWord，不使用异步
+                // 直接调用speakWord，不使用任何异步
                 speakWord(ew, cw, () => {
                     playAllIndex++;
                     // 间隔时间边界控制（0.5-10秒）
                     let gap = Math.max(0.5, Math.min(10, parseFloat(document.getElementById('intervalTime').value)))*1000;
+                    // iOS特殊处理：间隔时间增加200ms，避免语音重叠
+                    if (isIOS) gap += 200;
                     setTimeout(nextPlay, gap);
                 });
             }
@@ -798,7 +878,7 @@
                 btn.onclick=()=>{
                     initAudioContext();
                     let cn = wordCnMap.get(word)||"";
-                    speakWord(word, cn); // 直接调用，不使用异步
+                    speakWord(word, cn); // 直接调用，不使用任何异步
                 };
                 wrap.appendChild(btn);
             });
@@ -950,7 +1030,8 @@
             document.getElementById('rateValue').textContent = e.target.value;
         });
 
-        // 首次用户点击解锁语音功能（所有浏览器必须！）
+        // 首次用户点击/触摸解锁语音功能（所有浏览器必须！）
+        // 同时监听click和touchstart，覆盖所有移动设备交互方式
         document.addEventListener('click', unlockVoice, { once: true });
         document.addEventListener('touchstart', unlockVoice, { once: true });
     </script>
