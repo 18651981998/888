@@ -239,7 +239,7 @@
             1. 点击总标题展开/收起单词库/自定义输入区<br>
             2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
             3. 勾选单词/自定义输入均可保存、加载、一键听写<br>
-            4. 可以根据自己的习惯，设置播报参数 👇
+            4. 首次使用请先点击页面任意位置激活语音功能 👇
         </div>
 
         <div class="controls-area">
@@ -395,7 +395,7 @@
         <!-- 当前听写单词列表（保留原位置） -->
         <div class="word-list">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">当前听写单词列表 👇</h2>
-            <div id="statusInfo" class="status-info">📱 点击单词播放发音</div>
+            <div id="statusInfo" class="status-info">📱 首次使用请先点击页面任意位置激活语音</div>
             <div id="wordList"><p class="empty-tip">暂无单词，请先勾选或输入保存</p></div>
             <button class="btn btn-empty" onclick="emptyPlayList()" style="margin-top:15px;">清空播报列表</button>
         </div>
@@ -406,7 +406,9 @@
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = []; // 存储播放用的单词数组（支持随机）
-        let isFirstUserInteraction = true; // 标记是否首次用户交互
+        let isVoiceUnlocked = false; // 标记语音是否已解锁（首次用户交互）
+        let voiceLoadAttempts = 0; // 语音列表加载尝试次数
+        const MAX_VOICE_LOAD_ATTEMPTS = 10; // 最大加载尝试次数
 
         // 折叠/展开 总词库
         function toggleWholeLibrary(el){
@@ -463,11 +465,11 @@
             return document.querySelector('input[name="playOrder"]:checked').value;
         }
 
-        // 初始化音频上下文（兼容UC浏览器）
+        // 初始化音频上下文（兼容所有浏览器）
         function initAudioContext(){
             if(!audioContext) {
                 try {
-                    // UC浏览器需要特定的初始化方式
+                    // 标准初始化方式
                     window.AudioContext = window.AudioContext || window.webkitAudioContext;
                     audioContext = new AudioContext();
                 } catch(e) {
@@ -476,51 +478,85 @@
             }
         }
 
-        // ==================== 核心兼容性修复开始 ====================
-        // 1. 简化语音列表加载，适配UC浏览器
-        if('speechSynthesis' in window){
-            speechSynthesisAvailable = true;
-            // UC浏览器语音列表加载需要延迟
-            setTimeout(() => {
-                voices = window.speechSynthesis.getVoices();
-                if (voices.length === 0) {
-                    // 再次尝试加载
-                    setTimeout(() => {
-                        voices = window.speechSynthesis.getVoices();
-                    }, 500);
-                }
-            }, 300);
-            // 监听voiceschanged事件
-            window.speechSynthesis.onvoiceschanged = () => {
-                voices = window.speechSynthesis.getVoices();
-            };
-        }
-
-        // 2. 简化语音匹配，优先使用浏览器默认语音（最稳定）
-        function getDefaultVoice(lang) {
-            // 优先找精确匹配语言
-            let voice = voices.find(v => v.lang === lang);
-            if (!voice) {
-                // 找前缀匹配
-                voice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+        // ==================== 核心全浏览器兼容方案 ====================
+        // 1. 语音列表加载 - 轮询+事件监听双重保障
+        function initSpeechSynthesis() {
+            if('speechSynthesis' in window){
+                speechSynthesisAvailable = true;
+                // 监听voiceschanged事件
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+                // 立即开始加载语音列表
+                loadVoices();
+            } else {
+                document.getElementById('statusInfo').textContent = "⚠️ 当前浏览器不支持语音合成，请使用UC、Chrome、Safari或系统自带浏览器";
             }
-            // 最后返回第一个可用语音
-            return voice || voices[0];
         }
 
-        // 3. 核心语音播报函数 - 完全在用户点击事件中执行
+        // 加载语音列表 - 支持多次尝试
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log("语音列表加载成功，共" + voices.length + "个语音");
+                document.getElementById('statusInfo').textContent = "📱 点击单词播放发音";
+            } else if (voiceLoadAttempts < MAX_VOICE_LOAD_ATTEMPTS) {
+                voiceLoadAttempts++;
+                setTimeout(loadVoices, 200); // 每200ms尝试一次
+            } else {
+                console.log("语音列表加载失败，使用默认语音");
+                document.getElementById('statusInfo').textContent = "⚠️ 未检测到可用语音，请检查系统TTS设置";
+            }
+        }
+
+        // 2. 智能语音匹配 - 适配不同系统TTS引擎
+        function getBestVoice(lang) {
+            if (voices.length === 0) return null;
+            
+            // 1. 优先精确匹配语言代码
+            let voice = voices.find(v => v.lang === lang);
+            if (voice) return voice;
+            
+            // 2. 前缀匹配（如zh-CN匹配zh）
+            const langPrefix = lang.split('-')[0];
+            voice = voices.find(v => v.lang.startsWith(langPrefix));
+            if (voice) return voice;
+            
+            // 3. 系统特定语音优先（针对华为、小米、苹果等）
+            const systemVoices = {
+                'zh-CN': ['华为', '小米', '小爱', 'Siri', 'Jovi', '小布', '讯飞', 'Microsoft'],
+                'en-US': ['Siri', 'Google', 'Microsoft', 'Amazon']
+            };
+            
+            const preferredVoices = systemVoices[lang] || systemVoices['zh-CN'];
+            for (const name of preferredVoices) {
+                voice = voices.find(v => v.name.includes(name));
+                if (voice) return voice;
+            }
+            
+            // 4. 最后返回第一个可用语音
+            return voices[0];
+        }
+
+        // 3. 核心语音播报函数 - 全浏览器兼容
         function speakWord(enWord, cnWord, callback=null){
             if(!speechSynthesisAvailable){
                 alert("当前浏览器不支持语音合成功能，请使用UC浏览器、Chrome、Safari或系统自带浏览器");
                 return;
             }
             
-            // 强制取消所有正在播放的语音（适配UC浏览器）
+            // 确保语音已解锁（首次用户交互）
+            if(!isVoiceUnlocked){
+                alert("请先点击页面任意位置激活语音功能");
+                return;
+            }
+            
+            // 强制取消所有正在播放的语音（解决各浏览器cancel不生效问题）
             window.speechSynthesis.cancel();
             
             const mode = getPlayMode();
-            const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
-            const repeat = parseInt(document.getElementById('repeatCount').value)||1;
+            // 语速边界控制（0.5-2是所有浏览器支持的范围）
+            const baseRate = Math.max(0.5, Math.min(2, parseFloat(document.getElementById('rateSlider').value)||0.8));
+            // 播报次数边界控制（1-10次）
+            const repeat = Math.max(1, Math.min(10, parseInt(document.getElementById('repeatCount').value)||1));
             
             // 构建语音队列
             let utterances = [];
@@ -538,7 +574,7 @@
                 for(let i=0; i<repeat; i++){
                     let utt = new SpeechSynthesisUtterance(cnWord);
                     utt.lang = "zh-CN";
-                    utt.rate = baseRate * 0.9; // 中文稍慢
+                    utt.rate = Math.max(0.5, baseRate * 0.9); // 中文稍慢，更清晰
                     utt.volume = 1;
                     utt.pitch = 1.05;
                     utterances.push(utt);
@@ -555,15 +591,15 @@
                     if(cnWord) {
                         let utt = new SpeechSynthesisUtterance(cnWord);
                         utt.lang = "zh-CN";
-                        utt.rate = baseRate * 0.9;
+                        utt.rate = Math.max(0.5, baseRate * 0.9);
                         utterances.push(utt);
                     }
                 }
             }
             
-            // 为每个语音设置默认语音
+            // 为每个语音设置最佳匹配语音
             utterances.forEach(utt => {
-                let voice = getDefaultVoice(utt.lang);
+                let voice = getBestVoice(utt.lang);
                 if(voice) utt.voice = voice;
             });
             
@@ -575,21 +611,48 @@
                     return;
                 }
                 let utt = utterances[currentIndex++];
-                // 绑定错误处理
+                // 绑定错误处理（各浏览器都可能出现的播放错误）
                 utt.onerror = (e) => {
                     console.error("语音播放错误:", e);
-                    playNext(); // 继续播放下一个
+                    playNext(); // 继续播放下一个，不中断整个流程
                 };
                 utt.onend = () => {
-                    setTimeout(playNext, 300); // 300ms间隔
+                    setTimeout(playNext, 300); // 300ms间隔，确保清晰可辨
                 };
-                window.speechSynthesis.speak(utt);
+                // 尝试播放，捕获可能的异常
+                try {
+                    window.speechSynthesis.speak(utt);
+                } catch (e) {
+                    console.error("语音播放失败:", e);
+                    setTimeout(playNext, 300); // 失败也继续下一个
+                }
             }
             
             // 开始播放（确保在用户交互中）
             playNext();
         }
-        // ==================== 核心兼容性修复结束 ====================
+
+        // 4. 首次用户交互解锁语音功能（关键！所有浏览器都需要）
+        function unlockVoice() {
+            if (isVoiceUnlocked) return;
+            
+            isVoiceUnlocked = true;
+            document.getElementById('statusInfo').textContent = "📱 语音已激活，点击单词播放发音";
+            
+            // 播放一个空语音，激活所有浏览器的语音引擎（UC、Safari等必须）
+            if (speechSynthesisAvailable) {
+                try {
+                    let utt = new SpeechSynthesisUtterance("");
+                    window.speechSynthesis.speak(utt);
+                    setTimeout(() => {
+                        window.speechSynthesis.cancel();
+                    }, 100);
+                } catch (e) {
+                    console.log("激活语音引擎失败，不影响后续使用");
+                }
+            }
+        }
+        // ==================== 核心全浏览器兼容方案结束 ====================
 
         // 从词库开始听写 - 完全在用户点击事件中执行
         function startDictationFromLibrary(){
@@ -620,7 +683,7 @@
             enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
             loadWords();
             
-            // 直接调用播放，不使用setTimeout（关键修复！）
+            // 直接调用播放，不使用任何异步延迟（关键！）
             playAll();
         }
 
@@ -676,7 +739,8 @@
                 // 直接调用speakWord，不使用异步
                 speakWord(ew, cw, () => {
                     playAllIndex++;
-                    let gap = parseFloat(document.getElementById('intervalTime').value)*1000;
+                    // 间隔时间边界控制（0.5-10秒）
+                    let gap = Math.max(0.5, Math.min(10, parseFloat(document.getElementById('intervalTime').value)))*1000;
                     setTimeout(nextPlay, gap);
                 });
             }
@@ -853,11 +917,7 @@
 
         // 浏览器兼容性检测与初始化
         function initApp() {
-            // 检查语音合成支持
-            if (!('speechSynthesis' in window)) {
-                document.getElementById('statusInfo').textContent = "⚠️ 当前浏览器不支持语音合成，请使用UC浏览器、Chrome、Safari或系统自带浏览器";
-                return;
-            }
+            initSpeechSynthesis();
             
             // 加载保存的设置
             let s = JSON.parse(localStorage.getItem('currentSettings')||null);
@@ -871,19 +931,12 @@
             
             loadWords();
             loadSavedLists();
-            
-            // 检测系统语音是否可用
-            setTimeout(() => {
-                if (voices.length === 0) {
-                    document.getElementById('statusInfo').textContent = "⚠️ 系统未检测到可用语音，请在设置中启用TTS引擎";
-                }
-            }, 1000);
         }
 
         // 页面加载初始化
         window.onload = initApp;
 
-        // 页面隐藏时停止播放（适配UC浏览器）
+        // 页面隐藏时停止播放（适配所有浏览器）
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && isPlayingAll) {
                 window.speechSynthesis.cancel();
@@ -897,24 +950,9 @@
             document.getElementById('rateValue').textContent = e.target.value;
         });
 
-        // 确保首次用户交互激活语音合成（关键修复！）
-        document.addEventListener('click', () => {
-            if (isFirstUserInteraction) {
-                isFirstUserInteraction = false;
-                // 触发一个空的语音播放，激活语音引擎（UC浏览器需要）
-                if (speechSynthesisAvailable) {
-                    try {
-                        let utt = new SpeechSynthesisUtterance("");
-                        window.speechSynthesis.speak(utt);
-                        setTimeout(() => {
-                            window.speechSynthesis.cancel();
-                        }, 100);
-                    } catch (e) {
-                        console.log("激活语音引擎失败，不影响后续使用");
-                    }
-                }
-            }
-        }, { once: true });
+        // 首次用户点击解锁语音功能（所有浏览器必须！）
+        document.addEventListener('click', unlockVoice, { once: true });
+        document.addEventListener('touchstart', unlockVoice, { once: true });
     </script>
 </body>
 </html>
