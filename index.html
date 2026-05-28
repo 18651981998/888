@@ -295,7 +295,7 @@
 
 <body>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班01）</h1>
+        <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
             1. 点击标题即可展开/收起单词库/自定义输入区<br>
@@ -461,40 +461,24 @@
         let audioQueue = [];
         let currentAudio = null;
 
-        // ===================== 全选/反选/听写功能修复（核心修改）=====================
+        // ===================== 【终极修复】全选/反选/听写功能（绝对层级定位）=====================
         function selectAllWords(el) {
-            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
-            const container = el.closest('.fold-content');
-            if (container) {
-                // 只选择当前词库内的复选框
-                container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
-            } else {
-                // 兼容：找不到时选择所有词库
-                document.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
-            }
+            // 绝对层级定位：按钮 → library-controls → fold-content
+            const container = el.parentElement.parentElement;
+            // 只选择当前词库内的复选框
+            container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
         }
         function deselectAllWords(el) {
-            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
-            const container = el.closest('.fold-content');
-            if (container) {
-                // 只选择当前词库内的复选框
-                container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
-            } else {
-                // 兼容：找不到时选择所有词库
-                document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
-            }
+            // 绝对层级定位：按钮 → library-controls → fold-content
+            const container = el.parentElement.parentElement;
+            // 只选择当前词库内的复选框
+            container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
         }
         function startDictationFromLibrary(el) {
-            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
-            const container = el.closest('.fold-content');
-            let checks;
-            if (container) {
-                // 只获取当前词库内勾选的单词
-                checks = container.querySelectorAll('.library-word:checked');
-            } else {
-                // 兼容：找不到时获取所有词库勾选的单词
-                checks = document.querySelectorAll('.library-word:checked');
-            }
+            // 绝对层级定位：按钮 → library-controls → fold-content
+            const container = el.parentElement.parentElement;
+            // 只获取当前词库内勾选的单词
+            const checks = container.querySelectorAll('.library-word:checked');
             
             let enList=[], cnList=[];
             checks.forEach(item=>{
@@ -869,14 +853,14 @@
             }
         }
         // 页面初始化
-        窗口.加载=函数(){
+        window.onload=function(){
             initVoiceSystem();
             let s = JSON.parse(localStorage.getItem('currentSettings') || null);
-            如果(s){
+            if(s){
                 document.getElementById('rateSlider').value = s.rate;
-                document.getElementById('repeatCount')value=srepeat;
+                document.getElementById('repeatCount').value = s.repeat;
                 document.getElementById('intervalTime').value = s.interval;
-                document.getElementById('rateValue')textContent=srate;
+                document.getElementById('rateValue').textContent = s.rate;
                 if(s.order) document.querySelector('input[name="playOrder"][value="'+s.order+'"]').checked = true;
             }
             loadWords();
@@ -884,9 +868,9 @@
         };
         // 页面切后台暂停语音
         document.addEventListener('visibilitychange',()=>{
-            如果(文档.隐藏){
-                如果(window.speechSynthesisAvailable) 窗口.语音合成暂停
-                如果 (当前音频) 当前音频.暂停();
+            if(document.hidden){
+                if (speechSynthesisAvailable) window.speechSynthesis.pause();
+                if (currentAudio) currentAudio.pause();
             } else {
                 if (speechSynthesisAvailable && isPlayingAll) window.speechSynthesis.resume();
                 if (currentAudio && isPlayingAll) currentAudio.play().catch(e => console.error(e));
