@@ -295,7 +295,7 @@
 
 <body>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班）</h1>
+        <h1>📚 单词听写工具（何家坳2106班01）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
             1. 点击标题即可展开/收起单词库/自定义输入区<br>
@@ -885,7 +885,7 @@
         // 页面切后台暂停语音
         document.addEventListener('visibilitychange',()=>{
             如果(文档.隐藏){
-                如果 (speechSynthesisAvailable) window.speechSynthesis.暂停();
+                如果(window.speechSynthesisAvailable) 窗口.语音合成暂停
                 如果 (当前音频) 当前音频.暂停();
             } else {
                 if (speechSynthesisAvailable && isPlayingAll) window.speechSynthesis.resume();
