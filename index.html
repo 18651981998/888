@@ -8,8 +8,6 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
     <meta name="google" content="notranslate">
-    <!-- 引入纯前端离线语音引擎（核心） -->
-    <script src="https://cdn.jsdelivr.net/npm/mespeak@2.0.6/mespeak.min.js"></script>
     <style>
         * { 
             margin: 0; 
@@ -88,6 +86,7 @@
         .btn-load { background-color: #4CAF50; color: white; }
         .btn-primary { background-color: #9C27B0; color: white; }
         .btn-empty { background-color: #ff5722; color: white; }
+        .btn-retry { background-color: #FF9800; color: white; }
         .word-list { 
             background: white; 
             padding: 0; 
@@ -186,25 +185,32 @@
             border-radius: 4px;
             font-size: 13px;
         }
-        .voice-loading {
-            background: #e3f2fd;
-            border: 1px solid #bbdefb;
+        .voice-status {
             padding: 10px;
             border-radius: 4px;
             margin-bottom: 15px;
             font-size: 14px;
-            color: #1976D2;
             text-align: center;
+        }
+        .voice-loading {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1976D2;
         }
         .voice-ready {
             background: #e8f5e8;
             border: 1px solid #c8e6c9;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 14px;
             color: #2e7d32;
-            text-align: center;
+        }
+        .voice-fallback {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            color: #e65100;
+        }
+        .voice-error {
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
         }
 
         /* 原生details折叠样式 */
@@ -307,14 +313,15 @@
         <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
-            1. 等待语音引擎加载完成（显示"语音引擎已就绪"）<br>
+            1. 等待语音引擎加载，或直接使用在线模式<br>
             2. 点击标题即可展开/收起单词库/自定义输入区<br>
             3. 勾选单词 → 全选/全不选 → 点击开始听写<br>
-            4. 所有浏览器100%发声，无需网络
+            4. 离线模式无需网络，在线模式需要网络
         </div>
 
-        <div id="voiceStatus" class="voice-loading">
-            🔊 正在加载离线语音引擎，请稍候...
+        <div id="voiceStatus" class="voice-status voice-loading">
+            🔊 正在加载离线语音引擎 (1/3)...
+            <button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试</button>
         </div>
 
         <div class="controls-area">
@@ -466,58 +473,158 @@
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = [];
-        let voiceReady = false;
+        let currentEngine = 'online'; // 默认先使用在线引擎，离线加载成功后自动切换
         let currentAudio = null;
+        let meSpeakLoaded = false;
+        let loadTimeout = null;
 
-        // ========== 【终极核心】meSpeak 纯前端离线语音引擎初始化 ==========
-        // 加载配置和中英文语音文件（CDN加载，无需本地文件）
-        meSpeak.loadConfig("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/mespeak_config.json");
-        meSpeak.loadVoice("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/voices/en/en-us.json", function(success) {
-            if (success) {
-                // 英文语音加载成功，继续加载中文语音
-                meSpeak.loadVoice("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/voices/zh/zh.json", function(success) {
-                    if (success) {
-                        voiceReady = true;
-                        document.getElementById('voiceStatus').className = 'voice-ready';
-                        document.getElementById('voiceStatus').textContent = '🎉 离线语音引擎已就绪！所有浏览器均可正常发声';
-                        // 播放测试音
-                        meSpeak.speak("语音引擎已就绪", {voice: "zh", speed: 120});
-                    } else {
-                        // 中文语音加载失败，只使用英文
-                        voiceReady = true;
-                        document.getElementById('voiceStatus').className = 'voice-ready';
-                        document.getElementById('voiceStatus').textContent = '🔊 英文语音引擎已就绪';
-                    }
+        // ========== 【核心修复】多CDN自动切换 + 超时降级 ==========
+        const CDN_SOURCES = [
+            {
+                base: "https://cdn.jsdelivr.net/npm/mespeak@2.0.6/",
+                config: "mespeak_config.json",
+                enVoice: "voices/en/en-us.json",
+                zhVoice: "voices/zh/zh.json"
+            },
+            {
+                base: "https://unpkg.com/mespeak@2.0.6/",
+                config: "mespeak_config.json",
+                enVoice: "voices/en/en-us.json",
+                zhVoice: "voices/zh/zh.json"
+            },
+            {
+                base: "https://cdnjs.cloudflare.com/ajax/libs/mespeak/2.0.6/",
+                config: "mespeak_config.json",
+                enVoice: "voices/en-us.json",
+                zhVoice: "voices/zh.json"
+            }
+        ];
+        let currentCdnIndex = 0;
+
+        // 动态加载meSpeak脚本
+        function loadMeSpeakScript() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = CDN_SOURCES[currentCdnIndex].base + "mespeak.min.js";
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // 加载语音引擎
+        async function loadVoiceEngine() {
+            try {
+                // 1. 加载meSpeak脚本
+                document.getElementById('voiceStatus').innerHTML = `🔊 正在加载离线语音引擎 (1/3)... <button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试</button>`;
+                await loadMeSpeakScript();
+
+                // 2. 加载配置文件
+                document.getElementById('voiceStatus').innerHTML = `🔊 正在加载离线语音引擎 (2/3)... <button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试</button>`;
+                const configUrl = CDN_SOURCES[currentCdnIndex].base + CDN_SOURCES[currentCdnIndex].config;
+                await new Promise((resolve, reject) => {
+                    meSpeak.loadConfig(configUrl, function(success) {
+                        success ? resolve() : reject();
+                    });
                 });
-            } else {
-                // 语音加载失败，提示用户
-                document.getElementById('voiceStatus').className = 'voice-loading';
-                document.getElementById('voiceStatus').textContent = '⚠️ 语音引擎加载失败，请刷新页面重试';
-            }
-        });
 
-        // ========== 全选 / 全不选 / 开始听写（稳定版，永不失效） ==========
-        function selectAllWords(el) {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
+                // 3. 加载英文语音
+                document.getElementById('voiceStatus').innerHTML = `🔊 正在加载离线语音引擎 (3/3)... <button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试</button>`;
+                const enVoiceUrl = CDN_SOURCES[currentCdnIndex].base + CDN_SOURCES[currentCdnIndex].enVoice;
+                await new Promise((resolve, reject) => {
+                    meSpeak.loadVoice(enVoiceUrl, function(success) {
+                        success ? resolve() : reject();
+                    });
+                });
+
+                // 4. 加载中文语音（可选，失败不影响英文使用）
+                try {
+                    const zhVoiceUrl = CDN_SOURCES[currentCdnIndex].base + CDN_SOURCES[currentCdnIndex].zhVoice;
+                    await new Promise((resolve) => {
+                        meSpeak.loadVoice(zhVoiceUrl, function(success) {
+                            resolve(); // 中文加载失败也继续
+                        });
+                    });
+                } catch (e) {}
+
+                // 加载成功
+                meSpeakLoaded = true;
+                currentEngine = 'offline';
+                document.getElementById('voiceStatus').className = 'voice-status voice-ready';
+                document.getElementById('voiceStatus').innerHTML = '🎉 离线语音引擎已就绪！无需网络即可使用';
+                meSpeak.speak("语音引擎已就绪", {voice: "zh", speed: 120});
+
+            } catch (error) {
+                // 当前CDN失败，尝试下一个
+                currentCdnIndex++;
+                if (currentCdnIndex < CDN_SOURCES.length) {
+                    console.log(`CDN ${currentCdnIndex} 失败，尝试下一个`);
+                    loadVoiceEngine();
+                } else {
+                    // 所有CDN都失败，降级到在线引擎
+                    clearTimeout(loadTimeout);
+                    meSpeakLoaded = false;
+                    currentEngine = 'online';
+                    document.getElementById('voiceStatus').className = 'voice-status voice-fallback';
+                    document.getElementById('voiceStatus').innerHTML = '⚠️ 离线语音加载失败，已自动切换到在线模式（需要网络）<button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试离线</button>';
+                }
             }
+        }
+
+        // 手动重试加载
+        function retryVoiceLoad() {
+            currentCdnIndex = 0;
+            meSpeakLoaded = false;
+            clearTimeout(loadTimeout);
+            document.getElementById('voiceStatus').className = 'voice-status voice-loading';
+            loadVoiceEngine();
+            // 设置10秒超时
+            loadTimeout = setTimeout(() => {
+                if (!meSpeakLoaded) {
+                    currentEngine = 'online';
+                    document.getElementById('voiceStatus').className = 'voice-status voice-fallback';
+                    document.getElementById('voiceStatus').innerHTML = '⚠️ 离线语音加载超时，已自动切换到在线模式<button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试离线</button>';
+                }
+            }, 10000);
+        }
+
+        // 页面加载时开始加载离线语音，同时设置10秒超时
+        window.onload = function() {
+            loadVoiceEngine();
+            // 10秒超时自动降级
+            loadTimeout = setTimeout(() => {
+                if (!meSpeakLoaded) {
+                    currentEngine = 'online';
+                    document.getElementById('voiceStatus').className = 'voice-status voice-fallback';
+                    document.getElementById('voiceStatus').innerHTML = '⚠️ 离线语音加载超时，已自动切换到在线模式<button class="btn-retry" onclick="retryVoiceLoad()" style="margin-left:10px; padding:5px 10px; font-size:12px;">重试离线</button>';
+                }
+            }, 10000);
+
+            // 加载本地设置
+            let set = JSON.parse(localStorage.getItem('currentSettings') || "null");
+            if (set) {
+                document.getElementById('rateSlider').value = set.rate;
+                document.getElementById('repeatCount').value = set.repeat;
+                document.getElementById('intervalTime').value = set.interval;
+                document.getElementById('rateValue').textContent = set.rate;
+                if (set.order) {
+                    document.querySelector(`input[name="playOrder"][value="${set.order}"]`).checked = true;
+                }
+            }
+            loadWords();
+            loadSavedLists();
+        };
+
+        // ========== 全选 / 全不选 / 开始听写（稳定版） ==========
+        function selectAllWords(el) {
             const container = el.parentElement.parentElement;
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
         }
         function deselectAllWords(el) {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
-            }
             const container = el.parentElement.parentElement;
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
         }
         function startDictationFromLibrary(el) {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
-            }
             const container = el.parentElement.parentElement;
             const checks = container.querySelectorAll('.library-word:checked');
 
@@ -558,7 +665,7 @@
             setTimeout(playAll, 300);
         }
 
-        // ========== 核心语音播报（纯前端离线，100%兼容所有浏览器） ==========
+        // ========== 双引擎语音播报系统 ==========
         function getPlayMode() {
             return document.querySelector('input[name="playMode"]:checked').value;
         }
@@ -567,16 +674,34 @@
         }
 
         function speakText(text, lang, speed = 120) {
-            if (!voiceReady) return;
-            // 停止所有正在播放的语音
-            meSpeak.stop();
-            // meSpeak速度范围：80-200，默认120
-            meSpeak.speak(text, {
-                voice: lang === "zh-CN" ? "zh" : "en",
-                speed: Math.round(speed),
-                amplitude: 100,
-                pitch: 50
-            });
+            // 停止所有正在播放的音频
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            if (meSpeakLoaded) meSpeak.stop();
+
+            if (currentEngine === 'offline' && meSpeakLoaded) {
+                // 离线模式
+                meSpeak.speak(text, {
+                    voice: lang === "zh-CN" ? "zh" : "en",
+                    speed: Math.round(speed),
+                    amplitude: 100,
+                    pitch: 50
+                });
+            } else {
+                // 在线模式（百度TTS）
+                const langParam = lang === 'zh-CN' ? 'zh' : 'en';
+                const rateParam = Math.round(parseFloat(document.getElementById('rateSlider').value)*5);
+                const url = `https://tts.baidu.com/text2audio?lan=${langParam}&ie=UTF-8&spd=${rateParam}&text=${encodeURIComponent(text)}`;
+                currentAudio = new Audio(url);
+                currentAudio.play().catch(e => {
+                    // 百度失败尝试Google
+                    const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(text)}`;
+                    currentAudio = new Audio(googleUrl);
+                    currentAudio.play().catch(e => console.error("在线语音播放失败"));
+                });
+            }
         }
 
         function speakWord(en, cn, callback) {
@@ -634,12 +759,9 @@
         }
 
         function playAll() {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
-            }
             if (isPlayingAll) {
-                meSpeak.stop();
+                if (currentAudio) currentAudio.pause();
+                if (meSpeakLoaded) meSpeak.stop();
                 isPlayingAll = false;
                 playAllIndex = 0;
                 document.getElementById('statusInfo').textContent = "已停止播放";
@@ -687,7 +809,8 @@
 
         function emptyPlayList() {
             if (!confirm("确定清空播报列表？")) return;
-            meSpeak.stop();
+            if (currentAudio) currentAudio.pause();
+            if (meSpeakLoaded) meSpeak.stop();
             isPlayingAll = false;
             playAllIndex = 0;
             localStorage.removeItem('dictationWords');
@@ -699,10 +822,6 @@
         }
 
         function saveWordsWithSettings() {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
-            }
             let input = document.getElementById('wordInput').value.trim();
             let title = document.getElementById('listTitle').value.trim();
             if (!input) { alert("请输入单词"); return; }
@@ -752,10 +871,6 @@
                 btn.className = "word-btn";
                 btn.textContent = word;
                 btn.onclick = () => {
-                    if (!voiceReady) {
-                        alert("语音引擎正在加载中，请稍候...");
-                        return;
-                    }
                     let cn = wordCnMap.get(word) || "";
                     speakWord(word, cn);
                 };
@@ -803,10 +918,6 @@
         }
 
         function loadList(key) {
-            if (!voiceReady) {
-                alert("语音引擎正在加载中，请稍候...");
-                return;
-            }
             let data = JSON.parse(localStorage.getItem(key));
             if (!data) return alert("数据损坏");
             localStorage.setItem('dictationWords', data.words);
@@ -842,7 +953,8 @@
 
         function clearWords() {
             if (!confirm("确定清空所有词表？不可恢复！")) return;
-            meSpeak.stop();
+            if (currentAudio) currentAudio.pause();
+            if (meSpeakLoaded) meSpeak.stop();
             isPlayingAll = false;
             playAllIndex = 0;
             localStorage.removeItem('dictationWords');
@@ -861,28 +973,14 @@
             document.getElementById('statusInfo').textContent = "所有词表已清空";
         }
 
-        // 页面初始化
-        window.onload = function () {
-            let set = JSON.parse(localStorage.getItem('currentSettings') || "null");
-            if (set) {
-                document.getElementById('rateSlider').value = set.rate;
-                document.getElementById('repeatCount').value = set.repeat;
-                document.getElementById('intervalTime').value = set.interval;
-                document.getElementById('rateValue').textContent = set.rate;
-                if (set.order) {
-                    document.querySelector(`input[name="playOrder"][value="${set.order}"]`).checked = true;
-                }
-            }
-            loadWords();
-            loadSavedLists();
-        };
-
         // 切后台暂停语音
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                meSpeak.pause();
+                if (currentAudio) currentAudio.pause();
+                if (meSpeakLoaded) meSpeak.pause();
             } else {
-                if (isPlayingAll) meSpeak.resume();
+                if (currentAudio && isPlayingAll) currentAudio.play().catch(e => console.error(e));
+                if (meSpeakLoaded && isPlayingAll) meSpeak.resume();
             }
         });
     </script>
