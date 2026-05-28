@@ -7,8 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
-    <!-- 离线TTS降级库 -->
-    <script src="https://cdn.jsdelivr.net/npm/speak-js@1.0.24/build/speakClient.min.js"></script>
+    <!-- 替换为兼容性更强的离线语音库 -->
+    <script src="https://code.responsivevoice.org/responsivevoice.js"></script>
     <style>
         * {
             margin: 0;
@@ -430,27 +430,24 @@
         let pollInterval = null;
         const MAX_POLL = 30;
         let pollCount = 0;
-        let offlineTTSReady = false;
 
         // 页面加载初始化
         window.addEventListener('load', function(){
             initVoiceCheck();
-            initOfflineTTS();
             initLocalConfig();
             loadWords();
             loadSavedLists();
         });
 
-        // ====================== 语音检测（修复一直加载） ======================
+        // ====================== 语音检测 ======================
         function initVoiceCheck() {
             const statusDom = document.getElementById('voiceStatus');
             const listDom = document.getElementById('voiceList');
 
             if (!('speechSynthesis' in window)) {
                 statusDom.className = 'voice-error';
-                statusDom.innerText = '❌ 浏览器不支持原生语音，启用离线TTS';
-                listDom.innerText = '等待离线语音加载...';
-                document.getElementById('unlockBtn').innerText = '🔊 点击激活离线语音';
+                statusDom.innerText = '❌ 浏览器不支持原生语音，使用备用语音';
+                listDom.innerText = '备用语音已就绪';
                 voiceDetectionComplete = true;
                 return;
             }
@@ -460,8 +457,8 @@
             setTimeout(() => {
                 if (!voiceDetectionComplete) {
                     statusDom.className = 'voice-warn';
-                    statusDom.innerText = '⚠️ 检测超时，已自动放行';
-                    listDom.innerText = '直接点击解锁语音即可使用';
+                    statusDom.innerText = '⚠️ 检测超时，直接解锁即可使用';
+                    listDom.innerText = '';
                     voiceDetectionComplete = true;
                     clearInterval(pollInterval);
                 }
@@ -476,12 +473,10 @@
                     updateVoiceInfo();
                     clearInterval(pollInterval);
                     voiceDetectionComplete = true;
-                    if (voiceList.length > 0 && !voiceUnlocked) {
-                        setTimeout(() => {
-                            const warmup = new SpeechSynthesisUtterance('');
-                            synth.speak(warmup);
-                            synth.cancel();
-                        }, 300);
+                    if (voiceList.length > 0) {
+                        const warmup = new SpeechSynthesisUtterance('');
+                        synth.speak(warmup);
+                        synth.cancel();
                     }
                 }
             }, 300);
@@ -495,68 +490,49 @@
 
             if (voiceList.length === 0) {
                 statusDom.className = 'voice-warn';
-                statusDom.innerText = '⚠️ 未检测到系统语音包';
-                listDom.innerText = '请在 设置→无障碍 下载中文、英文语音包';
+                statusDom.innerText = '⚠️ 未检测到系统语音包，自动启用备用语音';
+                listDom.innerText = '前往设置下载语音包可提升音质';
             } else {
                 const hasZh = voiceList.some(v => v.lang.includes('zh'));
                 const hasEn = voiceList.some(v => v.lang.includes('en'));
                 if (hasZh && hasEn) {
                     statusDom.className = 'voice-normal';
-                    statusDom.innerText = '✅ 原生语音引擎正常（支持离线）';
+                    statusDom.innerText = '✅ 原生语音引擎正常';
                 } else {
                     statusDom.className = 'voice-warn';
-                    statusDom.innerText = '⚠️ 缺少中文/英文语音包';
+                    statusDom.innerText = '⚠️ 缺少语种语音包，启用备用语音';
                 }
                 listDom.innerText = `可用语音：${voiceList.map(v => v.name).join(' | ')}`;
             }
             voiceDetectionComplete = true;
         }
 
-        // ====================== 离线TTS降级引擎 ======================
-        function initOfflineTTS() {
-            if (window.speak && !offlineTTSReady) {
-                speak.setConfig({
-                    lang: 'zh-CN',
-                    pitch: 1.0,
-                    rate: 0.8,
-                    volume: 1.0
-                });
-                speak.onVoicesLoaded = function(){
-                    offlineTTSReady = true;
-                    const statusDom = document.getElementById('voiceStatus');
-                    if (!('speechSynthesis' in window) || voiceList.length === 0) {
-                        statusDom.className = 'voice-normal';
-                        statusDom.innerText = '✅ 离线TTS引擎已就绪';
-                    }
-                };
-                speak.loadVoices();
-            }
-        }
-
-        // ====================== 语音权限解锁（彻底修复：一次解锁永久有效） ======================
+        // ====================== 语音解锁（强制激活，解决权限拦截） ======================
         function unlockAudio() {
-            // 【核心修复】直接强制标记为已解锁，不再卡状态
             voiceUnlocked = true;
-            offlineTTSReady = true;
 
-            // 更新UI
             document.getElementById('voiceStatus').className = 'voice-normal';
-            document.getElementById('voiceStatus').innerText = '🎉 语音解锁成功，可正常使用';
+            document.getElementById('voiceStatus').innerText = '🎉 语音解锁成功';
             document.getElementById('unlockBtn').innerText = '✅ 语音已解锁';
 
-            // 唤醒原生音频
+            // 双重唤醒：原生语音 + 备用语音
             if ('speechSynthesis' in window) {
                 synth.cancel();
-                const warmup = new SpeechSynthesisUtterance('');
-                synth.speak(warmup);
-                synth.cancel();
+                const tip = new SpeechSynthesisUtterance('语音已解锁');
+                tip.lang = 'zh-CN';
+                tip.rate = 0.9;
+                synth.speak(tip);
             }
-
-            alert('✅ 解锁完成！现在可以正常听写，不会再提示解锁了');
+            // 唤醒备用语音
+            if(window.responsiveVoice){
+                responsiveVoice.speak("语音已解锁", "Chinese Female", {rate:0.9});
+            }
+            alert('✅ 解锁完成，现在可以正常听写！');
         }
 
-        // ====================== 智能播报（优先原生，失败自动切离线TTS） ======================
+        // ====================== 智能播报（优先原生，失败自动切备用语音） ======================
         function smartSpeak(text, langType = 'en-US', rate = 0.8) {
+            // 1. 优先使用系统原生语音
             if ('speechSynthesis' in window && voiceUnlocked && voiceList.length > 0) {
                 try {
                     synth.cancel();
@@ -579,20 +555,19 @@
                     synth.speak(utter);
                     return;
                 } catch (e) {
-                    console.warn('原生语音异常，切换离线TTS');
+                    console.warn('原生语音失效，切换备用语音');
                 }
             }
 
-            if (offlineTTSReady) {
-                const options = {
-                    lang: langType === 'zh-CN' ? 'zh' : 'en',
+            // 2. 备用离线语音（修复无声核心）
+            if(window.responsiveVoice && voiceUnlocked){
+                let voiceName = langType === 'zh-CN' ? "Chinese Female" : "UK English Female";
+                responsiveVoice.speak(text, voiceName, {
                     rate: rate,
-                    pitch: 1.0,
-                    volume: 1.0
-                };
-                speak.speak(text, options);
+                    volume: 1
+                });
             } else {
-                alert('请先点击【解锁语音】激活语音引擎！');
+                alert('请先点击【解锁语音】按钮！');
             }
         }
 
@@ -661,7 +636,6 @@
         }
 
         function startDictationFromLibrary(el) {
-            // 【核心修复】不再反复校验，直接放行
             const box = el.parentElement.parentElement;
             const checks = box.querySelectorAll('.library-word:checked');
             let enList = [], cnList = [];
@@ -700,7 +674,6 @@
         }
 
         function playAll() {
-            // 【核心修复】不再反复校验，直接放行
             if (isPlayingAll) {
                 synth.cancel();
                 isPlayingAll = false;
