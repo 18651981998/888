@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单词听写工具（何家坳2106班1）</title>
+    单词听写工具（何家坳2106班1）</>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
@@ -37,10 +37,10 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
         }
         .controls-area {
-            background: white; 
-            padding: 15px; 
+            背景: 白色; 
+            内边距: 15像素; 
             border-radius: 8px; 
-            margin-bottom: 20px; 
+            下边距: 20像素; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .control-group {
@@ -56,28 +56,28 @@
         .control-input {
             flex: 1;
             padding: 8px;
-            border: 1px solid #ddd;
+            : 1像素 实线#ddd;
             border-radius: 4px;
             font-size: 14px;
         }
         textarea { 
-            width: 100%; 
+            宽度: 100%; 
             height: 120px; 
             padding: 10px; 
-            border: 1px solid #ddd; 
+            边框: 1像素 实线#ddd;
             border-radius: 4px; 
-            resize: vertical; 
-            font-size: 16px; 
+            调整大小: 垂直; 
+            字体大小: 16像素; 
             margin-bottom: 10px; 
         }
-        .btn { 
+        .按钮 { 
             width: 100%; 
             padding: 12px; 
-            border: none; 
+            边框: 无; 
             border-radius: 4px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            cursor: pointer; 
+            字体大小: 16像素; 
+            字体粗细: 粗体; 
+            光标: 指针; 
             margin-bottom: 10px; 
         }
         .btn-save { background-color: #2196F3; color: white; }
@@ -85,69 +85,69 @@
         .btn-load { background-color: #4CAF50; color: white; }
         .btn-primary { background-color: #9C27B0; color: white; }
         .btn-empty { background-color: #ff5722; color: white; }
-        .word-list { 
-            background: white; 
-            padding: 0; 
+        .单词列表 { 
+            背景: 白色; 
+            内边距: 0; 
             border-radius: 8px; 
-            margin-top:15px;
+            上边距:15像素;
         }
         .word-btn { 
-            display: block; 
+            显示: 块; 
             width: 100%; 
-            padding: 15px; 
-            margin: 8px 0; 
-            border: none; 
+            内边距: 15像素; 
+            边距: 8像素 0; 
+            边框: 无; 
             border-radius: 4px; 
-            background-color: #e3f2fd; 
-            color: #1976D2; 
-            font-size: 18px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            text-align: center; 
+            背景颜色: #e3f2fd;
+            颜色: #1976D2;
+            字体大小: 18像素; 
+            字体粗细: 加粗; 
+            光标: 指针; 
+            文本对齐: 居中; 
             touch-action: manipulation; 
         }
         .word-btn:active { background-color: #bbdefb; }
         .empty-tip { 
-            text-align: center; 
-            color: #666; 
+            文本对齐: 居中; 
+            颜色: #666; 
             padding: 20px; 
-            font-size: 16px; 
+            字体大小: 16像素; 
         }
-        .status-info { 
-            text-align: center; 
-            color: #ff9800; 
+        .状态信息 { 
+            文本对齐: 居中; 
+            颜色: #ff9800;
             padding: 10px; 
             font-size: 14px;
             margin-bottom:10px; 
         }
-        .instructions { 
-            background: #d1ecf1; 
+        .指令 { 
+            背景: #d1ecf1;
             border: 1px solid #bee5eb; 
             padding: 10px; 
             border-radius: 4px; 
-            margin-bottom: 15px; 
+            下边距: 15像素; 
         }
-        .saved-list { margin-top: 15px; }
+        .已保存列表 { 上边距: 15像素; }
         /* 已保存词表项 - 折叠样式 */
         .saved-item-details {
-            border: 1px solid #eee;
+            边框: 1像素 实线#eee;
             border-radius: 4px;
             margin-bottom: 8px;
             background: #fff;
         }
-        .saved-item-summary {
+        .保存的项目摘要 {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 12px;
             background-color: #f9f9f9;
             cursor: pointer;
-            list-style: none;
+            列表样式: 无;
         }
-        .saved-item-summary::-webkit-details-marker {
-            display: none;
+        .保存的项目摘要::-webkit-details-marker {
+            显示: 无;
         }
-        .saved-item-summary::after {
+        .已保存项目摘要::之后 {
             content: "▼";
             font-size: 12px;
             color: #666;
@@ -160,14 +160,14 @@
             display: flex;
             gap: 8px;
         }
-        .load-btn {
-            background-color: #FF9800; color: white;
-            border: none; padding: 4px 8px; border-radius: 4px;
+        .加载按钮 {
+            背景颜色: #FF9800;颜色: 白色;
+            边框: 无; 内边距: 4像素 8像素; 圆角: 4像素;
             cursor: pointer; font-size: 12px;
         }
-        .delete-btn {
+        .删除按钮 {
             background-color: #f44336; color: white;
-            border: none; padding: 4px 8px; border-radius: 4px;
+            边框: 无; 内边距: 4像素 8像素; 圆角: 4像素;
             cursor: pointer; font-size: 12px;
         }
         /* 词表单词列表 */
@@ -176,19 +176,19 @@
             border-top: 1px solid #eee;
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            间距: 6像素;
         }
-        .saved-word-tag {
-            background-color: #f0f7ff;
-            color: #1976D2;
+        .已保存的词标签 {
+            背景颜色: #f0f7ff;
+            颜色: #1976D2;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 13px;
         }
 
-        .word-library, .input-area {
-            background: white; padding: 0; border-radius: 8px;
-            margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .单词库, .输入区域 {
+            背景: 白色; 内边距: 0; 圆角: 8像素;
+            底部边距: 20像素; 盒阴影: 0 2像素 4像素 rgba(0,0,0,0.1);
         }
         .library-main-header {
             display:flex; justify-content:space-between; align-items:center;
@@ -225,15 +225,15 @@
         .btn-select-all { background-color: #4CAF50; color: white; }
         .btn-deselect-all { background-color: #9E9E9E; color: white; }
         .play-mode, .order-mode {
-            display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;
+            显示:flex; 间距:8像素; 边距:10像素 0; 换行:换行;
         }
         .mode-radio { display:flex; align-items:center; gap:4px; }
     </style>
 </head>
 
-<body>
+<正文>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班）</h1>
+        <h1>📚 单词听写工具（何家坳2106班1）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
             1. 点击总标题展开/收起单词库/自定义输入区<br>
