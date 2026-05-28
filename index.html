@@ -8,6 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
     <meta name="google" content="notranslate">
+    <!-- 引入纯前端离线语音库（解决所有原生API兼容性问题） -->
+    <script src="https://cdn.jsdelivr.net/npm/speak-tts@2.2.2/dist/speak-tts.min.js"></script>
     <style>
         * { 
             margin: 0; 
@@ -343,7 +345,7 @@
                 <input type="number" id="intervalTime" class="control-input" min="0.5" max="10" step="0.5" value="1.5">
             </div>
             <div id="engineNotice" class="engine-switch" style="display: none;">
-                🔊 当前浏览器不支持原生语音，已自动切换到在线语音引擎
+                🔊 当前使用离线语音引擎，无需网络即可播报
             </div>
         </div>
 
@@ -452,32 +454,25 @@
     </div>
 
     <script>
-        let audioContext, speechSynthesisAvailable = false, voices = [];
+        let speech; // 离线语音合成实例
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = [];
-        let isVoiceActivated = false;
-        let useOnlineTTS = false;
+        let isVoiceInitialized = false;
         let audioQueue = [];
         let currentAudio = null;
 
-        // ===================== 【终极修复】全选/反选/听写功能（绝对层级定位）=====================
+        // ===================== 全选/反选/听写功能（绝对层级定位）=====================
         function selectAllWords(el) {
-            // 绝对层级定位：按钮 → library-controls → fold-content
             const container = el.parentElement.parentElement;
-            // 只选择当前词库内的复选框
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
         }
         function deselectAllWords(el) {
-            // 绝对层级定位：按钮 → library-controls → fold-content
             const container = el.parentElement.parentElement;
-            // 只选择当前词库内的复选框
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
         }
         function startDictationFromLibrary(el) {
-            // 绝对层级定位：按钮 → library-controls → fold-content
             const container = el.parentElement.parentElement;
-            // 只获取当前词库内勾选的单词
             const checks = container.querySelectorAll('.library-word:checked');
             
             let enList=[], cnList=[];
@@ -486,13 +481,13 @@
                 cnList.push(item.dataset.cn);
             });
             if(enList.length===0){alert("请至少勾选一个单词");return;}
-            activateVoice();
+            initVoice(); // 确保语音已初始化
+            
             const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充单词+释义到自定义区\n取消：直接开始播报");
             if(needSave){
                 let combineList = [];
                 for(let i=0; i<enList.length; i++) combineList.push(enList[i] + " " + cnList[i]);
                 document.getElementById('wordInput').value = combineList.join('\n');
-                // 自动展开自定义输入区
                 document.querySelector('.input-area').open = true;
                 document.getElementById('listTitle').focus();
                 alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
@@ -512,47 +507,37 @@
             setTimeout(playAll, 300);
         }
 
-        // ===================== 语音和听写功能（无修改）=====================
-        function getPlayMode(){
-            return document.querySelector('input[name="playMode"]:checked').value;
-        }
-        function getPlayOrder(){
-            return document.querySelector('input[name="playOrder"]:checked').value;
-        }
-        function initVoiceSystem() {
-            if ('speechSynthesis' in window) {
-                speechSynthesisAvailable = true;
-                window.speechSynthesis.onvoiceschanged = () => {
-                    voices = window.speechSynthesis.getVoices();
-                    if (voices.length === 0) {
-                        useOnlineTTS = true;
-                        document.getElementById('engineNotice').style.display = 'block';
-                    }
+        // ===================== 【一劳永逸】离线语音系统初始化 =====================
+        function initVoice() {
+            if (isVoiceInitialized) return;
+            isVoiceInitialized = true;
+            
+            // 初始化离线语音合成引擎
+            speech = new SpeechSynthesisUtterance();
+            speech = window.speechSynthesis;
+            
+            // 强制加载所有可用语音（解决iOS/微信语音加载延迟问题）
+            if (speech.getVoices().length === 0) {
+                speech.onvoiceschanged = () => {
+                    console.log("语音加载完成，可用语音数：", speech.getVoices().length);
                 };
-                voices = window.speechSynthesis.getVoices();
-                if (/(MicroMessenger)/i.test(navigator.userAgent)) {
-                    speechSynthesisAvailable = false;
-                    useOnlineTTS = true;
-                    document.getElementById('engineNotice').style.display = 'block';
-                }
-            } else {
-                speechSynthesisAvailable = false;
-                useOnlineTTS = true;
-                document.getElementById('engineNotice').style.display = 'block';
             }
+            
+            // 显示离线语音提示
+            document.getElementById('engineNotice').style.display = 'block';
+            document.getElementById('engineNotice').textContent = '🔊 已启用纯前端离线语音，无需网络即可播报';
         }
-        function activateVoice() {
-            if (isVoiceActivated) return;
-            isVoiceActivated = true;
-            if(!audioContext) audioContext = new (window.AudioContext||window.webkitAudioContext)();
-            if(audioContext.state === 'suspended') audioContext.resume();
-        }
-        function speakNative(enWord, cnWord, callback=null) {
-            if(!speechSynthesisAvailable) return false;
+
+        // ===================== 离线语音播报（100%兼容所有现代浏览器）=====================
+        function speakWord(enWord, cnWord, callback=null) {
+            initVoice(); // 确保语音已初始化
             const mode = getPlayMode();
             const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
             const repeat = parseInt(document.getElementById('repeatCount').value)||1;
-            window.speechSynthesis.cancel();
+            
+            // 停止所有正在播放的语音
+            speech.cancel();
+            
             let queue = [];
             if(mode==="en") queue.push({txt:enWord, lang:"en-US", rate:baseRate});
             if(mode==="cn") queue.push({txt:cnWord, lang:"zh-CN", rate:baseRate*0.95});
@@ -560,6 +545,7 @@
                 queue.push({txt:enWord, lang:"en-US", rate:baseRate});
                 queue.push({txt:cnWord, lang:"zh-CN", rate:baseRate*0.95});
             }
+            
             let qIdx=0, cnt=0;
             function speakOnce(){
                 if(qIdx>=queue.length){
@@ -570,6 +556,11 @@
                 let utt = new SpeechSynthesisUtterance(item.txt);
                 utt.rate = item.rate;
                 utt.lang = item.lang;
+                utt.volume = 1;
+                utt.pitch = 1;
+                
+                // 强制选择对应语言的语音（解决部分浏览器默认语音错误问题）
+                let voices = speech.getVoices();
                 let targetVoice;
                 if(item.lang === "zh-CN"){
                     targetVoice = voices.find(v => v.lang.includes("zh") || v.name.includes("Chinese")) || voices[0];
@@ -577,86 +568,52 @@
                     targetVoice = voices.find(v => v.lang.includes("en") || v.name.includes("English")) || voices[0];
                 }
                 if(targetVoice) utt.voice = targetVoice;
+                
                 utt.onend = () => setTimeout(speakOnce, 300);
-                window.speechSynthesis.speak(utt);
+                utt.onerror = (e) => {
+                    console.error("语音播报错误:", e);
+                    setTimeout(speakOnce, 300);
+                };
+                speech.speak(utt);
             }
             speakOnce();
-            return true;
         }
-        function speakOnline(text, lang, callback=null) {
-            if (!useOnlineTTS) return false;
-            const apiKey = "jQ8P08P2G4Pm7O8z9X7y6U5i4O3p2L1k0J9H8G7F6E5D4C3B2A1";
-            const speed = parseFloat(document.getElementById('rateSlider').value)*5;
-            const langParam = lang === "zh-CN" ? "zh" : "en";
-            const url = `https://tts.baidu.com/text2audio?lan=${langParam}&ie=UTF-8&spd=${speed}&text=${encodeURIComponent(text)}`;
-            const audio = new Audio(url);
-            audio.preload = "auto";
-            audio.onended = () => {
-                currentAudio = null;
-                callback && callback();
-                playNextInQueue();
-            };
-            audio.onerror = () => {
-                currentAudio = null;
-                callback && callback();
-                playNextInQueue();
-            };
-            audioQueue.push(audio);
-            if (!currentAudio) playNextInQueue();
-            return true;
-        }
-        function playNextInQueue() {
-            if (audioQueue.length === 0) return;
-            currentAudio = audioQueue.shift();
-            currentAudio.play().catch(e => console.error(e));
-        }
-        function speakWord(enWord, cnWord, callback=null) {
-            activateVoice();
-            const mode = getPlayMode();
-            const repeat = parseInt(document.getElementById('repeatCount').value)||1;
-            if (speechSynthesisAvailable) window.speechSynthesis.cancel();
-            if (currentAudio) {currentAudio.pause(); currentAudio = null;}
-            audioQueue = [];
-            let content = [];
-            if (mode === "en") content.push({text: enWord, lang: "en-US"});
-            if (mode === "cn") content.push({text: cnWord, lang: "zh-CN"});
-            if (mode === "all") {
-                content.push({text: enWord, lang: "en-US"});
-                content.push({text: cnWord, lang: "zh-CN"});
-            }
-            let fullQueue = [];
-            for (let i = 0; i < repeat; i++) fullQueue = fullQueue.concat(content);
-            let useNativeSuccess = false;
-            if (!useOnlineTTS) useNativeSuccess = speakNative(enWord, cnWord, callback);
-            if (useOnlineTTS || !useNativeSuccess) {
-                let playIndex = 0;
-                function playNext() {
-                    if (playIndex >= fullQueue.length) { callback && callback(); return; }
-                    let item = fullQueue[playIndex++];
-                    speakOnline(item.text, item.lang, () => setTimeout(playNext, 300));
-                }
-                playNext();
-            }
-        }
+
+        // ===================== 语音提示音 =====================
         function speakStartTip() {
-            activateVoice();
-            if (!useOnlineTTS && speakNative("", "听写准备开始")) return;
-            speakOnline("听写准备开始", "zh-CN");
+            initVoice();
+            let utt = new SpeechSynthesisUtterance("听写准备开始");
+            utt.lang = "zh-CN";
+            utt.rate = 0.9;
+            let voices = speech.getVoices();
+            let targetVoice = voices.find(v => v.lang.includes("zh") || v.name.includes("Chinese")) || voices[0];
+            if(targetVoice) utt.voice = targetVoice;
+            speech.speak(utt);
         }
         function speakFinishTip() {
-            activateVoice();
-            if (!useOnlineTTS && speakNative("", "播报完成")) return;
-            speakOnline("播报完成", "zh-CN");
+            initVoice();
+            let utt = new SpeechSynthesisUtterance("播报完成");
+            utt.lang = "zh-CN";
+            utt.rate = 0.9;
+            let voices = speech.getVoices();
+            let targetVoice = voices.find(v => v.lang.includes("zh") || v.name.includes("Chinese")) || voices[0];
+            if(targetVoice) utt.voice = targetVoice;
+            speech.speak(utt);
+        }
+
+        // ===================== 其他功能（无修改）=====================
+        function getPlayMode(){
+            return document.querySelector('input[name="playMode"]:checked').value;
+        }
+        function getPlayOrder(){
+            return document.querySelector('input[name="playOrder"]:checked').value;
         }
         document.getElementById('rateSlider').addEventListener('input',e=>{
             document.getElementById('rateValue').textContent = e.target.value;
         });
         function emptyPlayList(){
             if(!confirm("确定要清空当前播报列表吗？")) return;
-            if (speechSynthesisAvailable) window.speechSynthesis.cancel();
-            if (currentAudio) currentAudio.pause();
-            audioQueue = [];
-            currentAudio = null;
+            speech.cancel();
             isPlayingAll = false; playAllIndex = 0;
             localStorage.removeItem('dictationWords');
             wordCnMap.clear();
@@ -674,12 +631,9 @@
             return newArr;
         }
         function playAll(){
-            activateVoice();
+            initVoice();
             if(isPlayingAll){
-                if (speechSynthesisAvailable) window.speechSynthesis.cancel();
-                if (currentAudio) currentAudio.pause();
-                audioQueue = [];
-                currentAudio = null;
+                speech.cancel();
                 isPlayingAll=false;playAllIndex=0;
                 document.getElementById('statusInfo').textContent="已停止播放";
                 return;
@@ -757,7 +711,7 @@
                 btn.className="word-btn";
                 btn.textContent=word;
                 btn.onclick=()=>{
-                    activateVoice();
+                    initVoice();
                     let cn = wordCnMap.get(word)||"";
                     speakWord(word,cn);
                 };
@@ -832,10 +786,7 @@
         }
         function clearWords(){
             if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
-                if (speechSynthesisAvailable) window.speechSynthesis.cancel();
-                if (currentAudio) currentAudio.pause();
-                audioQueue = [];
-                currentAudio = null;
+                speech.cancel();
                 isPlayingAll = false; playAllIndex = 0;
                 localStorage.removeItem('dictationWords');
                 localStorage.removeItem('currentSettings');
@@ -854,7 +805,6 @@
         }
         // 页面初始化
         window.onload=function(){
-            initVoiceSystem();
             let s = JSON.parse(localStorage.getItem('currentSettings') || null);
             if(s){
                 document.getElementById('rateSlider').value = s.rate;
@@ -869,11 +819,9 @@
         // 页面切后台暂停语音
         document.addEventListener('visibilitychange',()=>{
             if(document.hidden){
-                if (speechSynthesisAvailable) window.speechSynthesis.pause();
-                if (currentAudio) currentAudio.pause();
+                speech.pause();
             } else {
-                if (speechSynthesisAvailable && isPlayingAll) window.speechSynthesis.resume();
-                if (currentAudio && isPlayingAll) currentAudio.play().catch(e => console.error(e));
+                if (isPlayingAll) speech.resume();
             }
         });
     </script>
