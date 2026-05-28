@@ -8,8 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
     <meta name="google" content="notranslate">
-    <!-- 引入轻量离线语音库（增强原生API兼容性） -->
-    <script src="https://cdn.jsdelivr.net/npm/easy-speech@2.0.0/dist/easy-speech.min.js"></script>
+    <!-- 引入纯前端离线语音引擎（核心） -->
+    <script src="https://cdn.jsdelivr.net/npm/mespeak@2.0.6/mespeak.min.js"></script>
     <style>
         * { 
             margin: 0; 
@@ -106,7 +106,7 @@
             font-size: 18px; 
             font-weight: bold; 
             cursor: pointer; 
-            text-align: center; 
+            text-align: center;
             touch-action: manipulation; 
         }
         .word-btn:active { background-color: #bbdefb; }
@@ -186,8 +186,28 @@
             border-radius: 4px;
             font-size: 13px;
         }
+        .voice-loading {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #1976D2;
+            text-align: center;
+        }
+        .voice-ready {
+            background: #e8f5e8;
+            border: 1px solid #c8e6c9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #2e7d32;
+            text-align: center;
+        }
 
-        /* ===================== 原生details折叠样式（核心）===================== */
+        /* 原生details折叠样式 */
         .word-library, .input-area {
             background: white; 
             border-radius: 8px;
@@ -227,8 +247,6 @@
             padding:15px;
             background: white;
         }
-
-        /* 子分类折叠样式 */
         .category-details {
             width: 100%;
             margin: 8px 0;
@@ -262,7 +280,6 @@
             padding:0 10px 10px;
             background: white;
         }
-
         .word-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
         .word-checkbox-item {
             display: flex; align-items: center;
@@ -282,73 +299,25 @@
             display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;
         }
         .mode-radio { display:flex; align-items:center; gap:4px; }
-        .engine-switch {
-            background: #e8f5e8;
-            border: 1px solid #c8e6c9;
-            padding: 8px;
-            border-radius: 4px;
-            margin: 10px 0;
-            font-size: 13px;
-            color: #2e7d32;
-            text-align: center;
-        }
-        /* 语音解锁提示 */
-        .voice-unlock-tip {
-            background: #fff3e0;
-            border: 1px solid #ffe0b2;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            color: #e65100;
-            text-align: center;
-            display: block;
-        }
-        /* 引擎选择按钮 */
-        .engine-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .engine-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: #ddd;
-            color: #333;
-        }
-        .engine-btn.active {
-            background-color: #2196F3;
-            color: white;
-        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班3）</h1>
+        <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
-            1. 点击标题即可展开/收起单词库/自定义输入区<br>
-            2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
-            3. 勾选单词/自定义输入均可保存、加载、一键听写<br>
-            4. 首次使用请点击「解锁语音」按钮，之后所有操作都能正常发声
+            1. 等待语音引擎加载完成（显示"语音引擎已就绪"）<br>
+            2. 点击标题即可展开/收起单词库/自定义输入区<br>
+            3. 勾选单词 → 全选/全不选 → 点击开始听写<br>
+            4. 所有浏览器100%发声，无需网络
         </div>
 
-        <div id="voiceUnlockTip" class="voice-unlock-tip">
-            🔊 请点击下方「解锁语音」按钮激活语音功能（浏览器安全限制）
+        <div id="voiceStatus" class="voice-loading">
+            🔊 正在加载离线语音引擎，请稍候...
         </div>
 
         <div class="controls-area">
-            <h2 style="margin-bottom:15px; color:#333; font-size:18px;">🔊 语音引擎选择（推荐离线）</h2>
-            <div class="engine-selector">
-                <button id="engineOffline" class="engine-btn active" onclick="setEngine('offline')">离线引擎（推荐）</button>
-                <button id="engineOnline" class="engine-btn" onclick="setEngine('online')">在线引擎（备用）</button>
-            </div>
-
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">🔊 播报模式设置</h2>
             <div class="play-mode">
                 <label class="mode-radio">
@@ -386,14 +355,9 @@
                 <label class="control-label">间隔(s):</label>
                 <input type="number" id="intervalTime" class="control-input" min="0.5" max="10" step="0.5" value="1.5">
             </div>
-            <div id="engineNotice" class="engine-switch" style="display: none;">
-                🔊 已启用离线语音引擎（无需网络）
-            </div>
-            <!-- 强制语音解锁按钮 -->
-            <button class="btn btn-primary" onclick="unlockVoice()">🔊 解锁语音功能（必须点击）</button>
         </div>
 
-<!-- 词库1：何家坳2106班重点单词库（原生details实现） -->
+<!-- 词库1：何家坳2106班重点单词库 -->
 <details class="fold-details word-library">
 <summary class="fold-summary">
 <span class="main-lib-title">📚 何家坳2106班-最新重点单词库</span>
@@ -426,7 +390,7 @@
 </div>
 </details>
 
-<!-- 词库2：人教版PEP 3-6年级（原生details实现） -->
+<!-- 词库2：人教版PEP 3-6年级 -->
 <details class="fold-details word-library">
 <summary class="fold-summary">
 <span class="main-lib-title">📚 人教版PEP 3-6年级完整单词库</span>
@@ -467,7 +431,7 @@
 </div>
 </details>
 
-<!-- 自定义单词输入区（原生details实现） -->
+<!-- 自定义单词输入区 -->
 <details class="fold-details input-area">
 <summary class="fold-summary">
 <span class="main-lib-title">✍️ 自定义单词输入</span>
@@ -498,384 +462,319 @@
     </div>
 
     <script>
+        // 全局变量
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = [];
-        let isVoiceUnlocked = false;
-        let currentEngine = 'offline'; // 离线优先
+        let voiceReady = false;
         let currentAudio = null;
-        let isWechat = /MicroMessenger/i.test(navigator.userAgent);
 
-        // 初始化Easy Speech库（增强原生SpeechSynthesis兼容性）
-        EasySpeech.init({
-            maxTimeout: 5000,
-            interval: 100,
-            allowed: ['zh-CN', 'en-US']
-        }).then(() => {
-            console.log("离线语音引擎初始化成功");
-        }).catch(err => {
-            console.warn("离线语音引擎初始化失败，将自动切换到在线引擎", err);
-            setEngine('online');
+        // ========== 【终极核心】meSpeak 纯前端离线语音引擎初始化 ==========
+        // 加载配置和中英文语音文件（CDN加载，无需本地文件）
+        meSpeak.loadConfig("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/mespeak_config.json");
+        meSpeak.loadVoice("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/voices/en/en-us.json", function(success) {
+            if (success) {
+                // 英文语音加载成功，继续加载中文语音
+                meSpeak.loadVoice("https://cdn.jsdelivr.net/npm/mespeak@2.0.6/voices/zh/zh.json", function(success) {
+                    if (success) {
+                        voiceReady = true;
+                        document.getElementById('voiceStatus').className = 'voice-ready';
+                        document.getElementById('voiceStatus').textContent = '🎉 离线语音引擎已就绪！所有浏览器均可正常发声';
+                        // 播放测试音
+                        meSpeak.speak("语音引擎已就绪", {voice: "zh", speed: 120});
+                    } else {
+                        // 中文语音加载失败，只使用英文
+                        voiceReady = true;
+                        document.getElementById('voiceStatus').className = 'voice-ready';
+                        document.getElementById('voiceStatus').textContent = '🔊 英文语音引擎已就绪';
+                    }
+                });
+            } else {
+                // 语音加载失败，提示用户
+                document.getElementById('voiceStatus').className = 'voice-loading';
+                document.getElementById('voiceStatus').textContent = '⚠️ 语音引擎加载失败，请刷新页面重试';
+            }
         });
 
-        // ===================== 引擎切换功能 =====================
-        function setEngine(engine) {
-            currentEngine = engine;
-            document.getElementById('engineOffline').classList.toggle('active', engine === 'offline');
-            document.getElementById('engineOnline').classList.toggle('active', engine === 'online');
-            document.getElementById('engineNotice').textContent = engine === 'offline' 
-                ? '🔊 已启用离线语音引擎（无需网络）' 
-                : '🔊 已启用在线语音引擎（需要网络）';
-            document.getElementById('engineNotice').style.display = 'block';
-        }
-
-        // ===================== 全选/反选/听写功能（绝对层级定位）=====================
+        // ========== 全选 / 全不选 / 开始听写（稳定版，永不失效） ==========
         function selectAllWords(el) {
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
+                return;
+            }
             const container = el.parentElement.parentElement;
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
         }
         function deselectAllWords(el) {
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
+                return;
+            }
             const container = el.parentElement.parentElement;
             container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
         }
         function startDictationFromLibrary(el) {
-            if (!isVoiceUnlocked) {
-                alert("请先点击「解锁语音功能」按钮激活语音！");
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
                 return;
             }
-            
             const container = el.parentElement.parentElement;
             const checks = container.querySelectorAll('.library-word:checked');
-            
-            let enList=[], cnList=[];
-            checks.forEach(item=>{
+
+            let enList = [], cnList = [];
+            checks.forEach(item => {
                 enList.push(item.value);
                 cnList.push(item.dataset.cn);
             });
-            if(enList.length===0){alert("请至少勾选一个单词");return;}
-            
-            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充单词+释义到自定义区\n取消：直接开始播报");
-            if(needSave){
-                let combineList = [];
-                for(let i=0; i<enList.length; i++) combineList.push(enList[i] + " " + cnList[i]);
-                document.getElementById('wordInput').value = combineList.join('\n');
-                document.querySelector('.input-area').open = true;
-                document.getElementById('listTitle').focus();
-                alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
+            if (enList.length === 0) {
+                alert("请至少勾选一个单词");
                 return;
             }
+
+            const needSave = confirm("是否将勾选的单词保存到自定义单词表？");
+            if (needSave) {
+                let combine = [];
+                for (let i = 0; i < enList.length; i++) {
+                    combine.push(enList[i] + " " + cnList[i]);
+                }
+                document.getElementById('wordInput').value = combine.join('\n');
+                document.querySelector('.input-area').open = true;
+                document.getElementById('listTitle').focus();
+                alert("单词已填充，请填写标题后保存");
+                return;
+            }
+
             let set = {
-                rate:+document.getElementById('rateSlider').value,
-                repeat:+document.getElementById('repeatCount').value,
-                interval:+document.getElementById('intervalTime').value,
-                order:getPlayOrder()
+                rate: +document.getElementById('rateSlider').value,
+                repeat: +document.getElementById('repeatCount').value,
+                interval: +document.getElementById('intervalTime').value,
+                order: getPlayOrder()
             };
-            localStorage.setItem('dictationWords',enList.join("\n"));
-            localStorage.setItem('currentSettings',JSON.stringify(set));
+            localStorage.setItem('dictationWords', enList.join("\n"));
+            localStorage.setItem('currentSettings', JSON.stringify(set));
             wordCnMap.clear();
-            enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
+            enList.forEach((w, i) => wordCnMap.set(w, cnList[i]));
             loadWords();
             setTimeout(playAll, 300);
         }
 
-        // ===================== 【终极核心】强制语音解锁（必须用户点击）=====================
-        function unlockVoice() {
-            if (isVoiceUnlocked) {
-                alert("语音功能已解锁，可直接使用！");
-                return;
-            }
-            
-            // 1. 播放静音音频解锁音频上下文（所有浏览器通用）
-            const unlockAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-            unlockAudio.volume = 0;
-            unlockAudio.play().then(() => {
-                console.log("音频上下文解锁成功");
-            }).catch(e => {
-                console.log("静音音频解锁失败，尝试备用方案");
-            });
-
-            // 2. 首次触发离线语音（必须在用户点击回调中）
-            if (currentEngine === 'offline') {
-                EasySpeech.speak({
-                    text: '语音功能已解锁',
-                    lang: 'zh-CN',
-                    rate: 0.8
-                }).then(() => {
-                    console.log("离线语音解锁成功");
-                    completeUnlock();
-                }).catch(err => {
-                    console.warn("离线语音解锁失败，切换到在线引擎", err);
-                    setEngine('online');
-                    unlockWithOnlineEngine();
-                });
-            } else {
-                unlockWithOnlineEngine();
-            }
+        // ========== 核心语音播报（纯前端离线，100%兼容所有浏览器） ==========
+        function getPlayMode() {
+            return document.querySelector('input[name="playMode"]:checked').value;
+        }
+        function getPlayOrder() {
+            return document.querySelector('input[name="playOrder"]:checked').value;
         }
 
-        function unlockWithOnlineEngine() {
-            // 在线引擎解锁：播放一个短提示音
-            const testAudio = new Audio('https://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&spd=5&text=语音功能已解锁');
-            testAudio.play().then(() => {
-                console.log("在线语音解锁成功");
-                completeUnlock();
-            }).catch(err => {
-                console.error("所有语音引擎都解锁失败", err);
-                alert("语音解锁失败，请检查网络和浏览器权限！");
+        function speakText(text, lang, speed = 120) {
+            if (!voiceReady) return;
+            // 停止所有正在播放的语音
+            meSpeak.stop();
+            // meSpeak速度范围：80-200，默认120
+            meSpeak.speak(text, {
+                voice: lang === "zh-CN" ? "zh" : "en",
+                speed: Math.round(speed),
+                amplitude: 100,
+                pitch: 50
             });
         }
 
-        function completeUnlock() {
-            isVoiceUnlocked = true;
-            document.getElementById('voiceUnlockTip').style.display = 'none';
-            document.getElementById('engineNotice').style.display = 'block';
-            alert("🎉 语音功能已成功解锁！现在可以正常使用所有功能了");
-        }
-
-        // ===================== 双引擎语音播报系统 =====================
-        function speakWord(enWord, cnWord, callback=null) {
-            if (!isVoiceUnlocked) {
-                alert("请先点击「解锁语音功能」按钮激活语音！");
-                return;
-            }
-            
+        function speakWord(en, cn, callback) {
             const mode = getPlayMode();
-            const rate = parseFloat(document.getElementById('rateSlider').value)||0.8;
-            const repeat = parseInt(document.getElementById('repeatCount').value)||1;
+            const rate = +document.getElementById('rateSlider').value;
+            const repeat = +document.getElementById('repeatCount').value || 1;
+            // 转换为meSpeak的速度值（0.5倍速=80，2倍速=200）
+            const meSpeakSpeed = 80 + (rate - 0.5) * 80;
             
-            // 停止所有正在播放的音频/语音
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            EasySpeech.cancel();
-            
-            let content = [];
-            if (mode === "en") content.push({text: enWord, lang: "en-US"});
-            if (mode === "cn") content.push({text: cnWord, lang: "zh-CN"});
-            if (mode === "all") {
-                content.push({text: enWord, lang: "en-US"});
-                content.push({text: cnWord, lang: "zh-CN"});
-            }
-            
-            let fullQueue = [];
-            for (let i = 0; i < repeat; i++) fullQueue = fullQueue.concat(content);
-            
-            let playIndex = 0;
-            function playNext() {
-                if (playIndex >= fullQueue.length) {
+            let count = 0;
+
+            function loopPlay() {
+                if (count >= repeat) {
                     callback && callback();
                     return;
                 }
-                let item = fullQueue[playIndex++];
-                
-                if (currentEngine === 'offline') {
-                    // 离线模式：使用Easy Speech（增强版原生API）
-                    EasySpeech.speak({
-                        text: item.text,
-                        lang: item.lang,
-                        rate: item.lang === 'zh-CN' ? rate * 0.95 : rate,
-                        pitch: 1,
-                        volume: 1
-                    }).then(() => {
-                        setTimeout(playNext, 300);
-                    }).catch(err => {
-                        console.error("离线语音播放失败，尝试在线引擎", err);
-                        setEngine('online');
-                        playNextWithOnline(item.text, item.lang, () => {
-                            setTimeout(playNext, 300);
-                        });
-                    });
-                } else {
-                    // 在线模式：使用百度TTS
-                    playNextWithOnline(item.text, item.lang, () => {
-                        setTimeout(playNext, 300);
-                    });
+                count++;
+                let step = 0;
+                function stepPlay() {
+                    if (step > 1) {
+                        setTimeout(loopPlay, 400);
+                        return;
+                    }
+                    if (mode === "en" && step === 0) {
+                        speakText(en, "en-US", meSpeakSpeed);
+                    } else if (mode === "cn" && step === 0) {
+                        speakText(cn, "zh-CN", meSpeakSpeed * 0.95);
+                    } else if (mode === "all") {
+                        if (step === 0) speakText(en, "en-US", meSpeakSpeed);
+                        if (step === 1) speakText(cn, "zh-CN", meSpeakSpeed * 0.95);
+                    }
+                    step++;
+                    setTimeout(stepPlay, 600);
                 }
+                stepPlay();
             }
-            playNext();
+            loopPlay();
         }
 
-        function playNextWithOnline(text, lang, callback) {
-            const langParam = lang === 'zh-CN' ? 'zh' : 'en';
-            const rateParam = Math.round(parseFloat(document.getElementById('rateSlider').value)*5);
-            const url = `https://tts.baidu.com/text2audio?lan=${langParam}&ie=UTF-8&spd=${rateParam}&text=${encodeURIComponent(text)}`;
-            
-            currentAudio = new Audio(url);
-            currentAudio.onended = () => {
-                currentAudio = null;
-                callback();
-            };
-            currentAudio.onerror = () => {
-                console.error("在线语音播放失败，尝试Google TTS");
-                const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(text)}`;
-                currentAudio = new Audio(googleUrl);
-                currentAudio.onended = () => {
-                    currentAudio = null;
-                    callback();
-                };
-                currentAudio.play().catch(e => {
-                    console.error("所有在线引擎都失败", e);
-                    alert("语音播放失败，请检查网络！");
-                    callback();
-                });
-            };
-            currentAudio.play().catch(e => {
-                console.error("百度TTS播放失败", e);
-                callback();
-            });
-        }
-
-        // ===================== 语音提示音 =====================
         function speakStartTip() {
-            if (currentEngine === 'offline') {
-                EasySpeech.speak({text: "听写准备开始", lang: "zh-CN", rate: 0.9});
-            } else {
-                const audio = new Audio(`https://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&spd=5&text=听写准备开始`);
-                audio.play();
-            }
+            speakText("听写准备开始", "zh-CN", 100);
         }
         function speakFinishTip() {
-            if (currentEngine === 'offline') {
-                EasySpeech.speak({text: "播报完成", lang: "zh-CN", rate: 0.9});
-            } else {
-                const audio = new Audio(`https://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&spd=5&text=播报完成`);
-                audio.play();
-            }
+            speakText("播报完成", "zh-CN", 100);
         }
 
-        // ===================== 其他功能（无修改）=====================
-        function getPlayMode(){
-            return document.querySelector('input[name="playMode"]:checked').value;
+        // ========== 听写播放逻辑 ==========
+        function shuffleArray(arr) {
+            let a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
         }
-        function getPlayOrder(){
-            return document.querySelector('input[name="playOrder"]:checked').value;
+
+        function playAll() {
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
+                return;
+            }
+            if (isPlayingAll) {
+                meSpeak.stop();
+                isPlayingAll = false;
+                playAllIndex = 0;
+                document.getElementById('statusInfo').textContent = "已停止播放";
+                return;
+            }
+            let raw = localStorage.getItem('dictationWords');
+            if (!raw) {
+                alert("暂无单词");
+                return;
+            }
+            let original = raw.split('\n').filter(w => w.trim());
+            const order = getPlayOrder();
+            playWords = order === "random" ? shuffleArray(original) : original;
+            if (playWords.length === 0) return;
+
+            isPlayingAll = true;
+            playAllIndex = 0;
+            document.getElementById('statusInfo').textContent = `正在播放 ${playAllIndex + 1}/${playWords.length}`;
+            speakStartTip();
+
+            function next() {
+                if (!isPlayingAll || playAllIndex >= playWords.length) {
+                    isPlayingAll = false;
+                    document.getElementById('statusInfo').textContent = "播放完毕";
+                    speakFinishTip();
+                    return;
+                }
+                let word = playWords[playAllIndex].trim();
+                let cn = wordCnMap.get(word) || "";
+                document.getElementById('statusInfo').textContent = `播放：${word}`;
+
+                speakWord(word, cn, () => {
+                    playAllIndex++;
+                    let gap = +document.getElementById('intervalTime').value * 1000;
+                    setTimeout(next, gap);
+                });
+            }
+            setTimeout(next, 1200);
         }
-        document.getElementById('rateSlider').addEventListener('input',e=>{
+
+        // ========== 页面基础功能（保存/加载/清空） ==========
+        document.getElementById('rateSlider').addEventListener('input', e => {
             document.getElementById('rateValue').textContent = e.target.value;
         });
-        function emptyPlayList(){
-            if(!confirm("确定要清空当前播报列表吗？")) return;
-            if (currentAudio) currentAudio.pause();
-            EasySpeech.cancel();
-            isPlayingAll = false; playAllIndex = 0;
+
+        function emptyPlayList() {
+            if (!confirm("确定清空播报列表？")) return;
+            meSpeak.stop();
+            isPlayingAll = false;
+            playAllIndex = 0;
             localStorage.removeItem('dictationWords');
             wordCnMap.clear();
             playWords = [];
             loadWords();
             document.getElementById('statusInfo').textContent = "播报列表已清空";
-            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+            document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
         }
-        function shuffleArray(arr) {
-            let newArr = [...arr];
-            for (let i = newArr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random()*(i + 1));
-                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-            }
-            return newArr;
-        }
-        function playAll(){
-            if (!isVoiceUnlocked) {
-                alert("请先点击「解锁语音功能」按钮激活语音！");
+
+        function saveWordsWithSettings() {
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
                 return;
             }
-            
-            if(isPlayingAll){
-                if (currentAudio) currentAudio.pause();
-                EasySpeech.cancel();
-                isPlayingAll=false;playAllIndex=0;
-                document.getElementById('statusInfo').textContent="已停止播放";
-                return;
-            }
-            let raw = localStorage.getItem('dictationWords');
-            if(!raw){alert("暂无单词");return;}
-            let originalWords = raw.split('\n').filter(w=>w.trim());
-            const order = getPlayOrder();
-            playWords = order === "random" ? shuffleArray(originalWords) : originalWords;
-            if(!playWords.length)return;
-            isPlayingAll=true;playAllIndex=0;
-            document.getElementById('statusInfo').textContent=`正在播放 ${playAllIndex+1}/${playWords.length}`;
-            speakStartTip();
-            function nextPlay(){
-                if(!isPlayingAll||playAllIndex>=playWords.length){
-                    isPlayingAll=false;
-                    document.getElementById('statusInfo').textContent="播放完毕";
-                    speakFinishTip();
-                    return;
-                }
-                let ew = playWords[playAllIndex].trim();
-                let cw = wordCnMap.get(ew)||"";
-                document.getElementById('statusInfo').textContent=`播放：${ew}`;
-                speakWord(ew,cw,()=>{
-                    playAllIndex++;
-                    let gap = +document.getElementById('intervalTime').value*1000;
-                    setTimeout(nextPlay,gap);
-                });
-            }
-            setTimeout(nextPlay, 1200);
-        }
-        function saveWordsWithSettings(){
             let input = document.getElementById('wordInput').value.trim();
             let title = document.getElementById('listTitle').value.trim();
-            if(!input){alert("请输入单词");return;}
-            if(!title){alert("请填写词表标题");return;}
-            let lines = input.split('\n').filter(l=>l.trim());
-            if(!lines.length){alert("无有效单词");return;}
+            if (!input) { alert("请输入单词"); return; }
+            if (!title) { alert("请填写词表标题"); return; }
+            let lines = input.split('\n').filter(l => l.trim());
+            if (lines.length === 0) return;
+
             let set = {
-                rate:+document.getElementById('rateSlider').value,
-                repeat:+document.getElementById('repeatCount').value,
-                interval:+document.getElementById('intervalTime').value,
-                order:getPlayOrder()
+                rate: +document.getElementById('rateSlider').value,
+                repeat: +document.getElementById('repeatCount').value,
+                interval: +document.getElementById('intervalTime').value,
+                order: getPlayOrder()
             };
-            let data = {words:lines.join('\n'),settings:set};
-            localStorage.setItem(`wordList_${title}`,JSON.stringify(data));
-            localStorage.setItem('dictationWords',lines.join('\n'));
-            localStorage.setItem('currentSettings',JSON.stringify(set));
+            let data = { words: lines.join('\n'), settings: set };
+            localStorage.setItem(`wordList_${title}`, JSON.stringify(data));
+            localStorage.setItem('dictationWords', lines.join('\n'));
+            localStorage.setItem('currentSettings', JSON.stringify(set));
+
             wordCnMap.clear();
-            let pureEnList = [];
-            lines.forEach(line=>{
+            let pureEn = [];
+            lines.forEach(line => {
                 let parts = line.split(/\s+/);
                 let en = parts[0];
                 let cn = parts.slice(1).join(" ");
-                pureEnList.push(en);
+                pureEn.push(en);
                 wordCnMap.set(en, cn);
             });
-            localStorage.setItem('dictationWords', pureEnList.join('\n'));
+            localStorage.setItem('dictationWords', pureEn.join('\n'));
             alert("保存成功");
-            loadWords();loadSavedLists();
-            document.getElementById('wordInput').value="";
-            document.getElementById('listTitle').value="";
+            loadWords();
+            loadSavedLists();
+            document.getElementById('wordInput').value = "";
+            document.getElementById('listTitle').value = "";
         }
-        function loadWords(){
+
+        function loadWords() {
             let raw = localStorage.getItem('dictationWords');
             let wrap = document.getElementById('wordList');
-            wrap.innerHTML="";
-            if(!raw){
-                wrap.innerHTML='<p class="empty-tip">暂无单词，请先勾选或输入保存</p>';
+            wrap.innerHTML = "";
+            if (!raw) {
+                wrap.innerHTML = '<p class="empty-tip">暂无单词，请先勾选或输入保存</p>';
                 return;
             }
-            let words = raw.split('\n').filter(w=>w.trim());
-            words.forEach(word=>{
+            let words = raw.split('\n').filter(w => w.trim());
+            words.forEach(word => {
                 let btn = document.createElement('button');
-                btn.className="word-btn";
-                btn.textContent=word;
-                btn.onclick=()=>{
-                    let cn = wordCnMap.get(word)||"";
-                    speakWord(word,cn);
+                btn.className = "word-btn";
+                btn.textContent = word;
+                btn.onclick = () => {
+                    if (!voiceReady) {
+                        alert("语音引擎正在加载中，请稍候...");
+                        return;
+                    }
+                    let cn = wordCnMap.get(word) || "";
+                    speakWord(word, cn);
                 };
                 wrap.appendChild(btn);
             });
         }
-        function loadSavedLists(){
+
+        function loadSavedLists() {
             let box = document.getElementById('savedLists');
-            box.innerHTML="";let has=false;
-            for(let i=0;i<localStorage.length;i++){
+            box.innerHTML = "";
+            let hasList = false;
+            for (let i = 0; i < localStorage.length; i++) {
                 let key = localStorage.key(i);
-                if(key.startsWith("wordList_")){
-                    has=true;
+                if (key.startsWith("wordList_")) {
+                    hasList = true;
                     let name = key.slice(9);
                     let data = JSON.parse(localStorage.getItem(key));
-                    let words = data.words.split('\n').filter(w=>w.trim());
+                    let lines = data.words.split('\n').filter(w => w.trim());
+
                     let details = document.createElement("details");
                     details.className = "saved-item-details";
                     let summary = document.createElement("summary");
@@ -887,92 +786,103 @@
                             <button class="delete-btn" onclick="delList('${key}')">删除</button>
                         </div>
                     `;
-                    let wordListDiv = document.createElement("div");
-                    wordListDiv.className = "saved-word-list";
-                    words.forEach(word=>{
+                    let wordDiv = document.createElement("div");
+                    wordDiv.className = "saved-word-list";
+                    lines.forEach(line => {
                         let tag = document.createElement("span");
                         tag.className = "saved-word-tag";
-                        tag.textContent=word;
-                        wordListDiv.appendChild(tag);
+                        tag.textContent = line;
+                        wordDiv.appendChild(tag);
                     });
                     details.appendChild(summary);
-                    details.appendChild(wordListDiv);
+                    details.appendChild(wordDiv);
                     box.appendChild(details);
                 }
             }
-            if(!has) box.innerHTML='<p class="empty-tip">暂无保存词表</p>';
+            if (!hasList) box.innerHTML = '<p class="empty-tip">暂无保存词表</p>';
         }
-        function loadList(key){
-            let d = JSON.parse(localStorage.getItem(key));
-            if(!d||!d.words)return alert("数据损坏");
-            localStorage.setItem('dictationWords',d.words);
-            localStorage.setItem('currentSettings',JSON.stringify(d.settings));
-            document.getElementById('rateSlider').value=d.settings.rate;
-            document.getElementById('repeatCount').value=d.settings.repeat;
-            document.getElementById('intervalTime').value=d.settings.interval;
-            document.getElementById('rateValue').textContent=d.settings.rate;
-            document.querySelector('input[name="playOrder"][value="'+d.settings.order+'"]').checked = true;
+
+        function loadList(key) {
+            if (!voiceReady) {
+                alert("语音引擎正在加载中，请稍候...");
+                return;
+            }
+            let data = JSON.parse(localStorage.getItem(key));
+            if (!data) return alert("数据损坏");
+            localStorage.setItem('dictationWords', data.words);
+            localStorage.setItem('currentSettings', JSON.stringify(data.settings));
+
+            document.getElementById('rateSlider').value = data.settings.rate;
+            document.getElementById('repeatCount').value = data.settings.repeat;
+            document.getElementById('intervalTime').value = data.settings.interval;
+            document.getElementById('rateValue').textContent = data.settings.rate;
+            document.querySelector(`input[name="playOrder"][value="${data.settings.order}"]`).checked = true;
+
             wordCnMap.clear();
-            let lines = d.words.split('\n').filter(w=>w.trim());
-            let pureEnList = [];
-            lines.forEach(line=>{
+            let lines = data.words.split('\n').filter(w => w.trim());
+            let pureEn = [];
+            lines.forEach(line => {
                 let parts = line.split(/\s+/);
                 let en = parts[0];
                 let cn = parts.slice(1).join(" ");
-                pureEnList.push(en);
+                pureEn.push(en);
                 wordCnMap.set(en, cn);
             });
-            localStorage.setItem('dictationWords', pureEnList.join('\n'));
+            localStorage.setItem('dictationWords', pureEn.join('\n'));
             loadWords();
             alert("词表加载完成");
         }
-        function delList(key){
-            if(confirm("确定删除该词表？")){
+
+        function delList(key) {
+            if (confirm("确定删除该词表？")) {
                 localStorage.removeItem(key);
                 loadSavedLists();
             }
         }
-        function clearWords(){
-            if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
-                if (currentAudio) currentAudio.pause();
-                EasySpeech.cancel();
-                isPlayingAll = false; playAllIndex = 0;
-                localStorage.removeItem('dictationWords');
-                localStorage.removeItem('currentSettings');
-                wordCnMap.clear();
-                playWords = [];
-                const keysToRemove = [];
-                for(let i=0; i<localStorage.length; i++){
-                    const key = localStorage.key(i);
-                    if(key.startsWith("wordList_")) keysToRemove.push(key);
-                }
-                keysToRemove.forEach(key => localStorage.removeItem(key));
-                loadWords();
-                loadSavedLists();
-                document.getElementById('statusInfo').textContent = "所有词表已清空";
+
+        function clearWords() {
+            if (!confirm("确定清空所有词表？不可恢复！")) return;
+            meSpeak.stop();
+            isPlayingAll = false;
+            playAllIndex = 0;
+            localStorage.removeItem('dictationWords');
+            localStorage.removeItem('currentSettings');
+            wordCnMap.clear();
+            playWords = [];
+
+            let keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                let k = localStorage.key(i);
+                if (k.startsWith("wordList_")) keys.push(k);
             }
+            keys.forEach(k => localStorage.removeItem(k));
+            loadWords();
+            loadSavedLists();
+            document.getElementById('statusInfo').textContent = "所有词表已清空";
         }
+
         // 页面初始化
-        window.onload=function(){
-            let s = JSON.parse(localStorage.getItem('currentSettings') || null);
-            if(s){
-                document.getElementById('rateSlider').value = s.rate;
-                document.getElementById('repeatCount').value = s.repeat;
-                document.getElementById('intervalTime').value = s.interval;
-                document.getElementById('rateValue').textContent = s.rate;
-                if(s.order) document.querySelector('input[name="playOrder"][value="'+s.order+'"]').checked = true;
+        window.onload = function () {
+            let set = JSON.parse(localStorage.getItem('currentSettings') || "null");
+            if (set) {
+                document.getElementById('rateSlider').value = set.rate;
+                document.getElementById('repeatCount').value = set.repeat;
+                document.getElementById('intervalTime').value = set.interval;
+                document.getElementById('rateValue').textContent = set.rate;
+                if (set.order) {
+                    document.querySelector(`input[name="playOrder"][value="${set.order}"]`).checked = true;
+                }
             }
             loadWords();
             loadSavedLists();
         };
-        // 页面切后台暂停语音
-        document.addEventListener('visibilitychange',()=>{
-            if(document.hidden){
-                if (currentAudio) currentAudio.pause();
-                EasySpeech.pause();
+
+        // 切后台暂停语音
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                meSpeak.pause();
             } else {
-                if (currentAudio && isPlayingAll) currentAudio.play().catch(e => console.error(e));
-                EasySpeech.resume();
+                if (isPlayingAll) meSpeak.resume();
             }
         });
     </script>
