@@ -1,0 +1,12 @@
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Max-Age: 86400
+
+/*.mp3
+  Content-Type: audio/mpeg
+  Cache-Control: public, max-age=31536000
+
+/*.wav
+内容类型：音频/wav
+  Cache-Control: public, max-age=31536000
