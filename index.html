@@ -461,22 +461,71 @@
         let audioQueue = [];
         let currentAudio = null;
 
-        // ===================== 全选/反选功能 =====================
+        // ===================== 全选/反选/听写功能修复（核心修改）=====================
         function selectAllWords(el) {
+            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
             const container = el.closest('.fold-content');
             if (container) {
+                // 只选择当前词库内的复选框
                 container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             } else {
+                // 兼容：找不到时选择所有词库
                 document.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             }
         }
         function deselectAllWords(el) {
+            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
             const container = el.closest('.fold-content');
             if (container) {
+                // 只选择当前词库内的复选框
                 container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             } else {
+                // 兼容：找不到时选择所有词库
                 document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             }
+        }
+        function startDictationFromLibrary(el) {
+            // 修复：使用更可靠的DOM遍历方式查找当前词库容器
+            const container = el.closest('.fold-content');
+            let checks;
+            if (container) {
+                // 只获取当前词库内勾选的单词
+                checks = container.querySelectorAll('.library-word:checked');
+            } else {
+                // 兼容：找不到时获取所有词库勾选的单词
+                checks = document.querySelectorAll('.library-word:checked');
+            }
+            
+            let enList=[], cnList=[];
+            checks.forEach(item=>{
+                enList.push(item.value);
+                cnList.push(item.dataset.cn);
+            });
+            if(enList.length===0){alert("请至少勾选一个单词");return;}
+            activateVoice();
+            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充单词+释义到自定义区\n取消：直接开始播报");
+            if(needSave){
+                let combineList = [];
+                for(let i=0; i<enList.length; i++) combineList.push(enList[i] + " " + cnList[i]);
+                document.getElementById('wordInput').value = combineList.join('\n');
+                // 自动展开自定义输入区
+                document.querySelector('.input-area').open = true;
+                document.getElementById('listTitle').focus();
+                alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
+                return;
+            }
+            let set = {
+                rate:+document.getElementById('rateSlider').value,
+                repeat:+document.getElementById('repeatCount').value,
+                interval:+document.getElementById('intervalTime').value,
+                order:getPlayOrder()
+            };
+            localStorage.setItem('dictationWords',enList.join("\n"));
+            localStorage.setItem('currentSettings',JSON.stringify(set));
+            wordCnMap.clear();
+            enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
+            loadWords();
+            setTimeout(playAll, 300);
         }
 
         // ===================== 语音和听写功能（无修改）=====================
@@ -631,40 +680,6 @@
             loadWords();
             document.getElementById('statusInfo').textContent = "播报列表已清空";
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
-        }
-        function startDictationFromLibrary(el) {
-            const container = el.closest('.fold-content');
-            let checks = container ? container.querySelectorAll('.library-word:checked') : document.querySelectorAll('.library-word:checked');
-            let enList=[], cnList=[];
-            checks.forEach(item=>{
-                enList.push(item.value);
-                cnList.push(item.dataset.cn);
-            });
-            if(enList.length===0){alert("请至少勾选一个单词");return;}
-            activateVoice();
-            const needSave = confirm("是否将勾选的单词保存到自定义单词表？\n确定：自动填充单词+释义到自定义区\n取消：直接开始播报");
-            if(needSave){
-                let combineList = [];
-                for(let i=0; i<enList.length; i++) combineList.push(enList[i] + " " + cnList[i]);
-                document.getElementById('wordInput').value = combineList.join('\n');
-                // 自动展开自定义输入区
-                document.querySelector('.input-area').open = true;
-                document.getElementById('listTitle').focus();
-                alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
-                return;
-            }
-            let set = {
-                rate:+document.getElementById('rateSlider').value,
-                repeat:+document.getElementById('repeatCount').value,
-                interval:+document.getElementById('intervalTime').value,
-                order:getPlayOrder()
-            };
-            localStorage.setItem('dictationWords',enList.join("\n"));
-            localStorage.setItem('currentSettings',JSON.stringify(set));
-            wordCnMap.clear();
-            enList.forEach((w,i)=>wordCnMap.set(w,cnList[i]));
-            loadWords();
-            setTimeout(playAll, 300);
         }
         function shuffleArray(arr) {
             let newArr = [...arr];
@@ -834,7 +849,7 @@
         function clearWords(){
             if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
                 if (speechSynthesisAvailable) window.speechSynthesis.cancel();
-                如果 (当前音频) 当前音频.暂停();
+                if (currentAudio) currentAudio.pause();
                 audioQueue = [];
                 currentAudio = null;
                 isPlayingAll = false; playAllIndex = 0;
