@@ -185,32 +185,82 @@
             font-size: 13px;
         }
 
+        /* ===================== 原生details折叠样式（核心）===================== */
         .word-library, .input-area {
-            background: white; padding: 0; border-radius: 8px;
-            margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: white; 
+            border-radius: 8px;
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-        /* 折叠头部样式强化：保证点击有效、不被遮挡 */
-        .fold-header {
-            display:flex; justify-content:space-between; align-items:center;
-            padding:12px; background:#e8f4ff; border-radius:6px;
-            cursor:pointer; margin-bottom:0;
+        .fold-details {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .fold-summary {
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center;
+            padding:12px; 
+            background:#e8f4ff; 
+            cursor:pointer;
             touch-action: manipulation;
-            position: relative;
-            z-index: 99; /* 提升层级，防止被遮挡 */
-            -webkit-tap-highlight-color: transparent; /* 去掉移动端点击高亮 */
+            list-style: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fold-summary::-webkit-details-marker {
+            display: none;
+        }
+        .fold-summary::after {
+            content: "▼";
+            font-size: 15px;
+            color: #2196F3;
+        }
+        .fold-details[open] .fold-summary::after {
+            content: "▲";
         }
         .main-lib-title { font-weight: bold; color:#222; font-size:17px; }
-        .main-fold-btn, .fold-btn { color:#2196F3; font-size:15px; }
-        .library-inner, .custom-inner { display:none; padding:15px; }
-        .library-inner.show, .custom-inner.show { display:block; }
+        .fold-content {
+            padding:15px;
+            background: white;
+        }
 
-        .category-header.fold-header {
-            padding:10px; background:#f0f7ff; border-radius:4px;
-            margin:8px 0;
+        /* 子分类折叠样式 */
+        .category-details {
+            width: 100%;
+            margin: 8px 0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .category-summary {
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center;
+            padding:10px; 
+            background:#f0f7ff; 
+            cursor:pointer;
+            touch-action: manipulation;
+            list-style: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .category-summary::-webkit-details-marker {
+            display: none;
+        }
+        .category-summary::after {
+            content: "▼";
+            font-size: 14px;
+            color: #2196F3;
+        }
+        .category-details[open] .category-summary::after {
+            content: "▲";
         }
         .category-title { font-weight: bold; color:#333; font-size:16px; }
-        .category-content { display:none; padding:0 10px 10px; }
-        .category-content.show { display:block; }
+        .category-content {
+            padding:0 10px 10px;
+            background: white;
+        }
+
         .word-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
         .word-checkbox-item {
             display: flex; align-items: center;
@@ -237,18 +287,18 @@
             border-radius: 4px;
             margin: 10px 0;
             font-size: 13px;
-            颜色: #e65100;
-            文本对齐: 居中;
+            color: #e65100;
+            text-align: center;
         }
     </style>
 </head>
 
-<正文>
+<body>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班1）</h1>
+        <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
-            1. 点击总标题展开/收起单词库/自定义输入区<br>
+            1. 点击标题即可展开/收起单词库/自定义输入区<br>
             2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
             3. 勾选单词/自定义输入均可保存、加载、一键听写<br>
             4. 可以根据自己的习惯，设置播报参数 👇
@@ -257,23 +307,23 @@
         <div class="controls-area">
             <h2 style="margin-bottom:15px; color:#333; font-size:18px;">🔊 播报模式设置</h2>
             <div class="play-mode">
-                
+                <label class="mode-radio">
                     <input type="radio" name="playMode" value="en" checked> 英文
                 </label>
-                
-                    中文
+                <label class="mode-radio">
+                    <input type="radio" name="playMode" value="cn"> 中文
                 </label>
-                
+                <label class="mode-radio">
                     <input type="radio" name="playMode" value="all"> 英文+中文
                 </label>
             </div>
 
             <h2 style="margin:15px 0; color:#333; font-size:18px;">🎲 听写顺序设置</h2>
             <div class="order-mode">
-                
+                <label class="mode-radio">
                     <input type="radio" name="playOrder" value="normal" checked> 顺序听写
                 </label>
-                
+                <label class="mode-radio">
                     <input type="radio" name="playOrder" value="random"> 随机听写
                 </label>
             </div>
@@ -297,105 +347,100 @@
             </div>
         </div>
 
-<!-- 词库1：何家坳2106班重点单词库 -->
-<div class="word-library">
-<div class="fold-header">
+<!-- 词库1：何家坳2106班重点单词库（原生details实现） -->
+<details class="fold-details word-library">
+<summary class="fold-summary">
 <span class="main-lib-title">📚 何家坳2106班-最新重点单词库</span>
-<span class="main-fold-btn">展开▼</span>
-</div>
-<div class="library-inner">
+</summary>
+<div class="fold-content">
     <div class="library-controls">
         <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
         <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
         <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
     </div>
-    <div class="category-wrap">
-        <div class="category-header fold-header">
-            <span class="category-title">一、身体部位</span>
-            <span class="fold-btn">展开▼</span>
+    <details class="category-details">
+    <summary class="category-summary">
+        <span class="category-title">一、身体部位</span>
+    </summary>
+    <div class="category-content">
+        <div class="word-checkboxes">
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鼻子" value="nose">nose<span class="cn-text">鼻子</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脸" value="face">face<span class="cn-text">脸</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="耳朵" value="ear">ear<span class="cn-text">耳朵</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="手" value="hand">hand<span class="cn-text">手</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="眼睛" value="eye">eye<span class="cn-text">眼睛</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="嘴巴" value="mouth">mouth<span class="cn-text">嘴巴</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="胳膊" value="arm">arm<span class="cn-text">胳膊</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="腿" value="leg">leg<span class="cn-text">腿</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脚" value="foot">foot<span class="cn-text">脚</span></div>
+            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="身体" value="body">body<span class="cn-text">身体</span></div>
         </div>
+    </div>
+    </details>
+</div>
+</details>
+
+<!-- 词库2：人教版PEP 3-6年级（原生details实现） -->
+<details class="fold-details word-library">
+<summary class="fold-summary">
+<span class="main-lib-title">📚 人教版PEP 3-6年级完整单词库</span>
+</summary>
+<div class="fold-content">
+    <div class="library-controls">
+        <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
+        <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
+        <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
+    </div>
+    <details class="category-details">
+    <summary class="category-summary">
+        <span class="category-title">三年级上册</span>
+    </summary>
+    <div class="category-content">
+        <details class="category-details">
+        <summary class="category-summary">
+            <span class="category-title">Unit 1 Hello!</span>
+        </summary>
         <div class="category-content">
             <div class="word-checkboxes">
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鼻子" value="nose">nose<span class="cn-text">鼻子</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脸" value="face">face<span class="cn-text">脸</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="耳朵" value="ear">ear<span class="cn-text">耳朵</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="手" value="hand">hand<span class="cn-text">手</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="眼睛" value="eye">eye<span class="cn-text">眼睛</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="嘴巴" value="mouth">mouth<span class="cn-text">嘴巴</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="胳膊" value="arm">arm<span class="cn-text">胳膊</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="腿" value="leg">leg<span class="cn-text">腿</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脚" value="foot">foot<span class="cn-text">脚</span></div>
-                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="身体" value="body">body<span class="cn-text">身体</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="尺子" value="ruler">ruler<span class="cn-text">尺子</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="铅笔" value="pencil">pencil<span class="cn-text">铅笔</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="橡皮" value="eraser">eraser<span class="cn-text">橡皮</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="蜡笔" value="crayon">crayon<span class="cn-text">蜡笔</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="包" value="bag">bag<span class="cn-text">包</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="钢笔" value="pen">pen<span class="cn-text">钢笔</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="铅笔盒" value="pencil box">pencil box<span class="cn-text">铅笔盒</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="书" value="book">book<span class="cn-text">书</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="不" value="no">no<span class="cn-text">不</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="你(们)的" value="your">your<span class="cn-text">你(们)的</span></div>
+                <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="学校" value="school">school<span class="cn-text">学校</span></div>
             </div>
         </div>
+        </details>
     </div>
+    </details>
 </div>
-</div>
+</details>
 
-<!-- 词库2：人教版PEP 3-6年级 -->
-<div class="word-library">
-    <div class="fold-header">
-        <span class="main-lib-title">📚 人教版PEP 3-6年级完整单词库</span>
-        <span class="main-fold-btn">展开▼</span>
+<!-- 自定义单词输入区（原生details实现） -->
+<details class="fold-details input-area">
+<summary class="fold-summary">
+<span class="main-lib-title">✍️ 自定义单词输入</span>
+</summary>
+<div class="fold-content">
+    <div class="control-group" style="margin-bottom:12px;">
+        <label class="control-label">单词表标题:</label>
+        <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
     </div>
-    <div class="library-inner">
-        <div class="library-controls">
-            <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
-            <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
-            <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
-        </div>
-        <div class="category-wrap">
-            <div class="category-header fold-header">
-                <span class="category-title">三年级上册</span>
-                <span class="fold-btn">展开▼</span>
-            </div>
-            <div class="category-content">
-                <div class="category-wrap">
-                    <div class="category-header fold-header">
-                        <span class="category-title">第一单元 你好！</span>
-                        <span class="fold-btn">展开▼</span>
-                    </div>
-                    <div class="category-content">
-                        <div class="word-checkboxes">
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="尺子" value="ruler">ruler<span class="cn-text">尺子</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="铅笔" value="pencil">铅笔<span class="cn-text">铅笔</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="橡皮" value="eraser">eraser<span class="cn-text">橡皮</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="蜡笔" value="crayon">crayon<span class="cn-text">蜡笔</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="包" value="bag">bag<span class="cn-text">包</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="钢笔" value="pen">pen<span class="cn-text">钢笔</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="铅笔盒" value="pencil box">pencil box<span class="cn-text">铅笔盒</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="书" value="book">书<span class="cn-text">书</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="不" value="no">no<span class="cn-text">不</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="你(们)的" value="your">your<span class="cn-text">你(们)的</span></div>
-                            <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="学校" value="school">school<span class="cn-text">学校</span></div>
-                        </div>
-                    </div>
-                </div>
-             </div>
-           </div>
-        </div>
-
-<!-- 自定义单词输入区 -->
-<div class="input-area">
-    <div class="fold-header">
-        <span class="main-lib-title">✍️ 自定义单词输入</span>
-        <span class="main-fold-btn">展开▼</span>
-    </div>
-    <div class="custom-inner">
-        <div class="control-group" style="margin-bottom:12px;">
-            <label class="control-label">单词表标题:</label>
-            <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
-        </div>
-        <textarea id="wordInput" placeholder="格式：英文 中文，一行一个"></textarea>
-        <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
-        <button class="btn btn-load" onclick="playAll()">播放全部</button>
-        <div class="word-list">
-            <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
-            <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
-            <button class="btn btn-clear" onclick="clearWords()">清空所有保存词表</button>
-        </div>
+    <textarea id="wordInput" placeholder="格式：英文 中文，一行一个"></textarea>
+    <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
+    <button class="btn btn-load" onclick="playAll()">播放全部</button>
+    <div class="word-list">
+        <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
+        <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
+        <button class="btn btn-clear" onclick="clearWords()">清空所有保存词表</button>
     </div>
 </div>
+</details>
 
         <!-- 当前听写单词列表 -->
         <div class="word-list">
@@ -406,7 +451,7 @@
         </div>
     </div>
 
-    <脚本>
+    <script>
         let audioContext, speechSynthesisAvailable = false, voices = [];
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
@@ -416,69 +461,25 @@
         let audioQueue = [];
         let currentAudio = null;
 
-        // ===================== 【核心极简折叠逻辑 100%兼容移动端】=====================
-        function togglePanel(el) {
-            const content = el.nextElementSibling;
-            const btn = el.querySelector('.main-fold-btn, .fold-btn');
-            if (!content || !btn) return;
-
-            如果 (content.classList.包含('show')) {
-                content.classList.删除('show');
-                btn.innerText = '展开▼';
-            } else {
-                content.classList.add('show');
-                btn.innerText = '收起▲';
-            }
-        }
-
-        // 页面加载完成后绑定所有折叠头部（click + touchstart 双事件）
-        window.addEventListener('load', function() {
-            const foldItems = document.querySelectorAll('.fold-header');
-            foldItems.forEach(function(item) {
-                // 鼠标/桌面端
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    togglePanel(this);
-                });
-                // 移动端触摸（解决微信/安卓点击失效）
-                item.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    togglePanel(this);
-                });
-            });
-
-            // 初始化语音系统
-            initVoiceSystem();
-            // 恢复历史配置
-            let s = JSON.parse(localStorage.getItem('currentSettings') || null);
-            如果(s){
-                document.getElementById('rateSlider').value = s.rate;
-                document.getElementById('repeatCount')value=srepeat;
-                document.getElementById('intervalTime').value = s.interval;
-                document.getElementById('rateValue')textContent=srate;
-                if(s.order) document.querySelector('input[name="playOrder"][value="'+s.order+'"]').checked = true;
-            }
-            loadWords();
-            loadSavedLists();
-        });
-
-        // ===================== 以下为语音、听写、保存等原有业务逻辑（无修改）=====================
+        // ===================== 全选/反选功能 =====================
         function selectAllWords(el) {
-            const container = el.closest('.library-inner');
+            const container = el.closest('.fold-content');
             if (container) {
                 container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             } else {
-                document.querySelectorAll('.library-word')forEachcb=>checked=true;
+                document.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             }
         }
         function deselectAllWords(el) {
-            const container = el.closest('.library-inner');
+            const container = el.closest('.fold-content');
             if (container) {
                 container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             } else {
                 document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             }
         }
+
+        // ===================== 语音和听写功能（无修改）=====================
         function getPlayMode(){
             return document.querySelector('input[name="playMode"]:checked').value;
         }
@@ -514,7 +515,7 @@
             if(audioContext.state === 'suspended') audioContext.resume();
         }
         function speakNative(enWord, cnWord, callback=null) {
-            如果(!speechSynthesisAvailable) 返回 false;
+            if(!speechSynthesisAvailable) return false;
             const mode = getPlayMode();
             const baseRate = parseFloat(document.getElementById('rateSlider').value)||0.8;
             const repeat = parseInt(document.getElementById('repeatCount').value)||1;
@@ -522,17 +523,17 @@
             let queue = [];
             if(mode==="en") queue.push({txt:enWord, lang:"en-US", rate:baseRate});
             if(mode==="cn") queue.push({txt:cnWord, lang:"zh-CN", rate:baseRate*0.95});
-            如果(模式===“全部”){
-                队列.推入({文本:enWord, 语言:“en-US”, 速率:基础速率});
+            if(mode==="all"){
+                queue.push({txt:enWord, lang:"en-US", rate:baseRate});
                 queue.push({txt:cnWord, lang:"zh-CN", rate:baseRate*0.95});
             }
             let qIdx=0, cnt=0;
-            函数 speakOnce(){
-                如果(qIdx>=queue.length){
+            function speakOnce(){
+                if(qIdx>=queue.length){
                     cnt++; qIdx=0;
-                    如果(计数>=重复){回调&&回调(); 返回;}
+                    if(cnt>=repeat){callback&&callback(); return;}
                 }
-                let 项 = 队列[qIdx++];
+                let item = queue[qIdx++];
                 let utt = new SpeechSynthesisUtterance(item.txt);
                 utt.rate = item.rate;
                 utt.lang = item.lang;
@@ -632,7 +633,7 @@
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
         function startDictationFromLibrary(el) {
-            const container = el.closest('.library-inner');
+            const container = el.closest('.fold-content');
             let checks = container ? container.querySelectorAll('.library-word:checked') : document.querySelectorAll('.library-word:checked');
             let enList=[], cnList=[];
             checks.forEach(item=>{
@@ -646,10 +647,8 @@
                 let combineList = [];
                 for(let i=0; i<enList.length; i++) combineList.push(enList[i] + " " + cnList[i]);
                 document.getElementById('wordInput').value = combineList.join('\n');
-                const customHeader = document.querySelector('.input-area .fold-header');
-                const customInner = document.querySelector('.custom-inner');
-                customInner.classList.add('show');
-                customHeader.querySelector('.main-fold-btn').innerText = '收起▲';
+                // 自动展开自定义输入区
+                document.querySelector('.input-area').open = true;
                 document.getElementById('listTitle').focus();
                 alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
                 return;
@@ -815,9 +814,9 @@
             wordCnMap.clear();
             let lines = d.words.split('\n').filter(w=>w.trim());
             let pureEnList = [];
-            行.forEach(行=>{
-                let 部分 = 行.split(/\s+/);
-                let en = 部分[0];
+            lines.forEach(line=>{
+                let parts = line.split(/\s+/);
+                let en = parts[0];
                 let cn = parts.slice(1).join(" ");
                 pureEnList.push(en);
                 wordCnMap.set(en, cn);
@@ -833,7 +832,7 @@
             }
         }
         function clearWords(){
-            如果(确认(“确定要清空所有已保存的单词表吗？此操作不可恢复！”)){
+            if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
                 if (speechSynthesisAvailable) window.speechSynthesis.cancel();
                 如果 (当前音频) 当前音频.暂停();
                 audioQueue = [];
@@ -854,6 +853,21 @@
                 document.getElementById('statusInfo').textContent = "所有词表已清空";
             }
         }
+        // 页面初始化
+        窗口.加载=函数(){
+            initVoiceSystem();
+            let s = JSON.parse(localStorage.getItem('currentSettings') || null);
+            如果(s){
+                document.getElementById('rateSlider').value = s.rate;
+                document.getElementById('repeatCount')value=srepeat;
+                document.getElementById('intervalTime').value = s.interval;
+                document.getElementById('rateValue')textContent=srate;
+                if(s.order) document.querySelector('input[name="playOrder"][value="'+s.order+'"]').checked = true;
+            }
+            loadWords();
+            loadSavedLists();
+        };
+        // 页面切后台暂停语音
         document.addEventListener('visibilitychange',()=>{
             如果(文档.隐藏){
                 如果 (speechSynthesisAvailable) window.speechSynthesis.暂停();
@@ -865,4 +879,4 @@
         });
     </script>
 </body>
-                </html>
+</html>
