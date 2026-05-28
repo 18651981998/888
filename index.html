@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>单词听写工具（何家坳2106班）</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -52,18 +51,18 @@
         .status-info{text-align:center;color:#ff9800;padding:10px;font-size:14px;font-weight:500;background:#fff8e1;border-radius:4px;margin-bottom:10px}
         .empty-tip{text-align:center;color:#999;padding:20px;font-size:14px}
         .instructions{background:#d1ecf1;border:1px solid #bee5eb;padding:12px;border-radius:4px;margin-bottom:15px;font-size:13px;line-height:1.6;color:#0c5460}
-        .engine-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;margin-left:8px;vertical-align:middle}
-        .engine-native{background:#4CAF50;color:#fff}
-        .engine-online{background:#FF9800;color:#fff}
-        .engine-none{background:#f44336;color:#fff}
-        #unlockOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;display:none;justify-content:center;align-items:center;flex-direction:column;color:#fff;font-size:18px;text-align:center;padding:20px}
-        #unlockBtn{margin-top:20px;padding:15px 40px;background:#2196F3;border:none;border-radius:8px;color:#fff;font-size:18px;font-weight:bold;cursor:pointer}
+        /* 强制解锁遮罩 */
+        #unlockOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;justify-content:center;align-items:center;flex-direction:column;color:#fff;font-size:18px;text-align:center;padding:20px}
+        #unlockBtn{margin-top:20px;padding:15px 40px;background:#2196F3;border:none;border-radius:8px;color:#fff;font-size:18px;font-weight:bold;cursor:pointer;animation:pulse 1.5s infinite}
+        @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
     </style>
 </head>
 <body>
+    <!-- 首次进入必须点击解锁 -->
     <div id="unlockOverlay">
-        <p>🔊 首次使用需要解锁音频</p>
-        <button id="unlockBtn" onclick="unlockAudio()">点击此处解锁</button>
+        <p>🔊 为保证所有浏览器都能正常发音</p>
+        <p style="font-size:14px;margin-top:8px;opacity:.8;">请点击下方按钮解锁音频引擎</p>
+        <button id="unlockBtn" onclick="forceUnlockAudio()">👆 点击解锁并开始使用</button>
     </div>
 
     <div class="container">
@@ -71,11 +70,10 @@
         
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
-            1. 点击标题栏展开/收起对应区域<br>
-            2. 支持英文/中文/英汉对照播报 + 顺序/随机听写<br>
-            3. 勾选单词或自定义输入后均可保存、加载、一键听写<br>
-            4. <strong>语音引擎状态：</strong><span id="engineStatus" class="engine-badge engine-none">检测中...</span><br>
-            5. iPhone 自带离线语音；安卓手机请在「设置→辅助功能→文字转语音」中安装中文语音包以获得离线支持
+            1. 本工具采用<strong>云端语音引擎</strong>，无需手机安装任何语音包<br>
+            2. 兼容 UC / Chrome / Safari / 微信等所有主流浏览器<br>
+            3. 首次打开请务必点击屏幕解锁音频<br>
+            4. 听写过程需要保持网络连接
         </div>
 
         <!-- 播报设置 -->
@@ -102,8 +100,8 @@
                 </div>
                 <div class="control-group">
                     <label class="control-label" for="rateSlider">语速</label>
-                    <input type="range" id="rateSlider" class="control-input" min="0.5" max="2" step="0.1" value="0.8">
-                    <span id="rateValue" style="min-width:30px;text-align:center;font-size:14px;">0.8</span>
+                    <input type="range" id="rateSlider" class="control-input" min="1" max="15" step="1" value="5">
+                    <span id="rateValue" style="min-width:30px;text-align:center;font-size:14px;">5</span>
                 </div>
                 <div class="control-group">
                     <label class="control-label" for="repeatCount">播报次数</label>
@@ -231,10 +229,6 @@
  * ==========================================
  */
 let audioContext = null;
-let speechSynthesisAvailable = false;
-let voices = [];
-let hasNativeZh = false;
-let hasNativeEn = false;
 let isPlayingAll = false;
 let playAllIndex = 0;
 let wordCnMap = new Map();
@@ -244,82 +238,40 @@ let audioUnlocked = false;
 
 /**
  * ==========================================
- *  音频解锁（解决移动端首次播放无声）
+ *  强制音频解锁（解决所有移动端无声问题）
  * ==========================================
  */
-function unlockAudio() {
+function forceUnlockAudio() {
     if (audioUnlocked) return;
+    
+    // 1. 创建并恢复 AudioContext
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (audioContext.state === 'suspended') audioContext.resume();
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
     
-    const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
-    silentAudio.volume = 0.01;
-    silentAudio.play().then(() => {
+    // 2. 播放一段极短的静音 Base64 音频，骗过浏览器的自动播放策略
+    const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+    const unlockAudio = new Audio(silentWav);
+    unlockAudio.volume = 0.01;
+    
+    unlockAudio.play().then(() => {
         audioUnlocked = true;
         document.getElementById('unlockOverlay').style.display = 'none';
-    }).catch(() => {
+        console.log('[Audio] 解锁成功');
+    }).catch(e => {
+        // 即使报错也标记为已解锁，避免卡死
         audioUnlocked = true;
         document.getElementById('unlockOverlay').style.display = 'none';
+        console.warn('[Audio] 解锁异常:', e);
     });
-    
-    if (speechSynthesisAvailable) {
-        const utt = new SpeechSynthesisUtterance('');
-        utt.volume = 0;
-        window.speechSynthesis.speak(utt);
-        window.speechSynthesis.cancel();
-    }
 }
 
-document.addEventListener('click', () => { if (!audioUnlocked) unlockAudio(); });
-document.addEventListener('touchstart', () => { if (!audioUnlocked) unlockAudio(); });
-
-/**
- * ==========================================
- *  语音引擎检测与初始化
- * ==========================================
- */
-function detectVoices() {
-    if (!speechSynthesisAvailable) return;
-    voices = window.speechSynthesis.getVoices();
-    hasNativeZh = voices.some(v => v.lang.startsWith('zh'));
-    hasNativeEn = voices.some(v => v.lang.startsWith('en'));
-    updateEngineBadge();
-}
-
-function updateEngineBadge() {
-    const el = document.getElementById('engineStatus');
-    if (!el) return;
-    if (hasNativeZh && hasNativeEn) {
-        el.textContent = '✅ 离线语音可用';
-        el.className = 'engine-badge engine-native';
-    } else if (hasNativeEn || hasNativeZh) {
-        el.textContent = '⚠️ 部分离线可用';
-        el.className = 'engine-badge engine-online';
-    } else if (speechSynthesisAvailable) {
-        el.textContent = '🌐 仅在线语音';
-        el.className = 'engine-badge engine-online';
-    } else {
-        el.textContent = '❌ 无语音引擎';
-        el.className = 'engine-badge engine-none';
-    }
-}
-
-if ('speechSynthesis' in window) {
-    speechSynthesisAvailable = true;
-    detectVoices();
-    window.speechSynthesis.onvoiceschanged = detectVoices;
-    // 某些浏览器 voices 异步加载，延迟再检测一次
-    setTimeout(detectVoices, 500);
-    setTimeout(detectVoices, 1500);
-} else {
-    updateEngineBadge();
-}
-
-document.getElementById('rateSlider').addEventListener('input', e => {
-    document.getElementById('rateValue').textContent = e.target.value;
-});
+// 绑定全局点击，防止用户关闭遮罩后仍未解锁
+document.addEventListener('click', () => { if (!audioUnlocked) forceUnlockAudio(); }, { once: true });
+document.addEventListener('touchstart', () => { if (!audioUnlocked) forceUnlockAudio(); }, { once: true });
 
 /**
  * ==========================================
@@ -342,17 +294,21 @@ function toggleSelectAll(btnEl, isChecked) {
 
 /**
  * ==========================================
- *  核心语音引擎（三级降级）
+ *  核心语音引擎（纯在线方案，彻底抛弃原生API）
  * ==========================================
  */
 function getPlayMode() { return document.querySelector('input[name="playMode"]:checked').value; }
 function getPlayOrder() { return document.querySelector('input[name="playOrder"]:checked').value; }
-function getRate() { return parseFloat(document.getElementById('rateSlider').value) || 0.8; }
+function getRate() { return parseInt(document.getElementById('rateSlider').value) || 5; }
 function getRepeat() { return parseInt(document.getElementById('repeatCount').value) || 1; }
 function getInterval() { return parseFloat(document.getElementById('intervalTime').value) || 1.5; }
 
+// 语速滑块实时显示
+document.getElementById('rateSlider').addEventListener('input', e => {
+    document.getElementById('rateValue').textContent = e.target.value;
+});
+
 function stopAllSpeech() {
-    if (speechSynthesisAvailable) window.speechSynthesis.cancel();
     if (currentAudioEl) {
         currentAudioEl.pause();
         currentAudioEl.currentTime = 0;
@@ -362,42 +318,41 @@ function stopAllSpeech() {
     }
 }
 
-// 【二级兜底】百度翻译 TTS
-function speakByBaidu(text, lang, rate, callback) {
-    const spd = Math.max(1, Math.min(15, Math.round(rate * 5)));
-    const lan = lang.startsWith('zh') ? 'zh' : 'en';
-    const url = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(text)}&spd=${spd}&source=web`;
-    playOnlineAudio(url, text, callback);
-}
-
-// 【三级兜底】备用在线 TTS
-function speakByFallback(text, lang, rate, callback) {
-    const voiceName = lang.startsWith('zh') ? 'zh-CN-XiaoxiaoNeural' : 'en-US-AriaNeural';
-    const speedRate = Math.round(rate * 100) + '%';
-    const url = `https://tts-api.miyoushe.com/tts?text=${encodeURIComponent(text)}&voice=${voiceName}&rate=${speedRate}`;
-    playOnlineAudio(url, text, callback);
-}
-
-// 通用在线音频播放器（含超时保护）
-function playOnlineAudio(url, text, callback) {
+// 百度翻译 TTS 播放核心
+function speakText(text, lang, rate, callback) {
     stopAllSpeech();
+    
+    const lan = lang.startsWith('zh') ? 'zh' : 'en';
+    // 百度TTS语速范围 1-15
+    const spd = Math.max(1, Math.min(15, rate));
+    const url = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(text)}&spd=${spd}&source=web`;
+    
     const audio = new Audio(url);
     currentAudioEl = audio;
-    let finished = false;
-    const done = () => { if (finished) return; finished = true; if (callback) setTimeout(callback, 200); };
     
-    const timer = setTimeout(() => { console.warn('[TTS] 超时:', text); done(); }, 10000);
+    let finished = false;
+    const done = () => {
+        if (finished) return;
+        finished = true;
+        if (callback) setTimeout(callback, 250);
+    };
+    
+    // 10秒超时保护，防止网络卡死
+    const timer = setTimeout(() => {
+        console.warn('[TTS] 播放超时:', text);
+        done();
+    }, 10000);
+    
     audio.onended = () => { clearTimeout(timer); done(); };
     audio.onerror = () => { clearTimeout(timer); done(); };
-    audio.play().catch(err => { clearTimeout(timer); console.warn('[TTS] 播放失败:', err); done(); });
+    
+    audio.play().catch(err => {
+        clearTimeout(timer);
+        console.warn('[TTS] 播放被拦截:', err);
+        done();
+    });
 }
 
-// 判断指定语言是否有原生离线语音
-function hasNativeVoiceFor(lang) {
-    return voices.some(v => v.lang.startsWith(lang.substring(0, 2)));
-}
-
-// 核心播报：优先原生 → 百度兜底 → 备用兜底
 function speakWord(enWord, cnWord, callback) {
     const mode = getPlayMode();
     const rate = getRate();
@@ -405,11 +360,11 @@ function speakWord(enWord, cnWord, callback) {
     stopAllSpeech();
     
     let queue = [];
-    if (mode === 'en') queue.push({ txt: enWord, lang: 'en-US' });
-    if (mode === 'cn') queue.push({ txt: cnWord, lang: 'zh-CN' });
+    if (mode === 'en') queue.push({ txt: enWord, lang: 'en' });
+    if (mode === 'cn') queue.push({ txt: cnWord, lang: 'zh' });
     if (mode === 'all') {
-        queue.push({ txt: enWord, lang: 'en-US' });
-        queue.push({ txt: cnWord, lang: 'zh-CN' });
+        queue.push({ txt: enWord, lang: 'en' });
+        queue.push({ txt: cnWord, lang: 'zh' });
     }
     if (!queue.length) { if (callback) callback(); return; }
     
@@ -421,49 +376,13 @@ function speakWord(enWord, cnWord, callback) {
             if (cnt >= repeat) { if (callback) callback(); return; }
         }
         const item = queue[qIdx++];
-        const nativeAvailable = speechSynthesisAvailable && hasNativeVoiceFor(item.lang);
-        
-        if (nativeAvailable) {
-            const utt = new SpeechSynthesisUtterance(item.txt);
-            utt.rate = rate;
-            utt.lang = item.lang;
-            const tv = voices.find(v => v.lang.startsWith(item.lang.substring(0, 2)));
-            if (tv) utt.voice = tv;
-            
-            let done = false;
-            const finish = () => { if (done) return; done = true; setTimeout(speakNext, 200); };
-            const timer = setTimeout(finish, (item.txt.length / rate + 3) * 1000);
-            utt.onend = () => { clearTimeout(timer); finish(); };
-            utt.onerror = () => { clearTimeout(timer); finish(); };
-            window.speechSynthesis.speak(utt);
-        } else {
-            // 先尝试百度，失败则自动降级到备用
-            speakByBaidu(item.txt, item.lang, rate, () => {
-                // 如果百度播放成功，onended 会触发此回调
-                // 如果百度失败，也会触发此回调（超时/错误都调用 done）
-                // 这里无法区分"成功播完"和"失败跳过"，简化处理：直接继续
-                speakNext();
-            });
-        }
+        speakText(item.txt, item.lang, rate, speakNext);
     }
     speakNext();
 }
 
 function speakTip(text, callback) {
-    const nativeZh = speechSynthesisAvailable && hasNativeVoiceFor('zh-CN');
-    if (nativeZh) {
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.lang = 'zh-CN'; utt.rate = 0.9;
-        const v = voices.find(v => v.lang.startsWith('zh'));
-        if (v) utt.voice = v;
-        let done = false;
-        const finish = () => { if (done) return; done = true; if (callback) callback(); };
-        utt.onend = finish; utt.onerror = finish;
-        setTimeout(finish, 3000);
-        window.speechSynthesis.speak(utt);
-    } else {
-        speakByBaidu(text, 'zh-CN', 0.9, callback);
-    }
+    speakText(text, 'zh', 5, callback);
 }
 
 /**
@@ -497,7 +416,11 @@ function nextPlay() {
 }
 
 function playAll() {
-    if (!audioUnlocked) { unlockAudio(); setTimeout(playAll, 300); return; }
+    if (!audioUnlocked) { 
+        forceUnlockAudio(); 
+        setTimeout(playAll, 300); 
+        return; 
+    }
     if (isPlayingAll) {
         stopAllSpeech(); isPlayingAll = false; playAllIndex = 0;
         document.getElementById('statusInfo').textContent = '⏹ 已停止';
@@ -529,7 +452,7 @@ function emptyPlayList() {
  * ==========================================
  */
 function startDictationFromLibrary(btnEl) {
-    unlockAudio();
+    forceUnlockAudio();
     const card = btnEl.closest('.card');
     const checks = card.querySelectorAll('.library-word:checked');
     const enList = [], cnList = [];
@@ -586,7 +509,7 @@ function loadWords() {
     raw.split('\n').filter(w => w.trim()).forEach(word => {
         const btn = document.createElement('button');
         btn.className = 'word-btn'; btn.textContent = word;
-        btn.onclick = () => { unlockAudio(); speakWord(word, wordCnMap.get(word) || ''); };
+        btn.onclick = () => { forceUnlockAudio(); speakWord(word, wordCnMap.get(word) || ''); };
         wrap.appendChild(btn);
     });
 }
@@ -662,10 +585,8 @@ window.onload = () => {
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && isPlayingAll) {
-        if (speechSynthesisAvailable) window.speechSynthesis.pause();
         if (currentAudioEl) currentAudioEl.pause();
     } else if (!document.hidden && isPlayingAll) {
-        if (speechSynthesisAvailable) window.speechSynthesis.resume();
         if (currentAudioEl) currentAudioEl.play().catch(() => {});
     }
 });
