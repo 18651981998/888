@@ -3,44 +3,44 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    单词听写工具（何家坳2106班1）</>
+    <title>单词听写工具（何家坳2106班）</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2196F3">
     <meta name="google" content="notranslate">
     <style>
         * { 
-            边距: 0; 
-            内边距: 0; 
-            盒模型: 边框盒; 
-            字体族: Arial, 无衬线字体; 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: Arial, sans-serif; 
         }
-        正文 { 
-            内边距: 15像素; 
-            背景颜色: #f5f5f5;
+        body { 
+            padding: 15px; 
+            background-color: #f5f5f5; 
         }
-        .容器 { 
-            最大宽度: 100%; 
-            边距: 0 自动; 
+        .container { 
+            max-width: 100%; 
+            margin: 0 auto; 
         }
         h1 { 
-            文本对齐: 居中; 
-            颜色: #333; 
-            下边距: 20像素; 
-            字体大小: 22像素; 
+            text-align: center; 
+            color: #333; 
+            margin-bottom: 20px; 
+            font-size: 22px; 
         }
-        .输入区域 { 
-            背景: 白色; 
-            内边距: 0; 
+        .input-area { 
+            background: white; 
+            padding: 0; 
             border-radius: 8px; 
-            下边距: 20像素; 
+            margin-bottom: 20px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
         }
         .controls-area {
-            背景: 白色; 
-            内边距: 15像素; 
+            background: white; 
+            padding: 15px; 
             border-radius: 8px; 
-            下边距: 20像素; 
+            margin-bottom: 20px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .control-group {
@@ -56,28 +56,28 @@
         .control-input {
             flex: 1;
             padding: 8px;
-            : 1像素 实线#ddd;
+            border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
         }
         textarea { 
-            宽度: 100%; 
+            width: 100%; 
             height: 120px; 
             padding: 10px; 
-            边框: 1像素 实线#ddd;
+            border: 1px solid #ddd; 
             border-radius: 4px; 
-            调整大小: 垂直; 
-            字体大小: 16像素; 
+            resize: vertical; 
+            font-size: 16px; 
             margin-bottom: 10px; 
         }
-        .按钮 { 
+        .btn { 
             width: 100%; 
             padding: 12px; 
-            边框: 无; 
+            border: none; 
             border-radius: 4px; 
-            字体大小: 16像素; 
-            字体粗细: 粗体; 
-            光标: 指针; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
             margin-bottom: 10px; 
         }
         .btn-save { background-color: #2196F3; color: white; }
@@ -85,69 +85,69 @@
         .btn-load { background-color: #4CAF50; color: white; }
         .btn-primary { background-color: #9C27B0; color: white; }
         .btn-empty { background-color: #ff5722; color: white; }
-        .单词列表 { 
-            背景: 白色; 
-            内边距: 0; 
+        .word-list { 
+            background: white; 
+            padding: 0; 
             border-radius: 8px; 
-            上边距:15像素;
+            margin-top:15px;
         }
         .word-btn { 
-            显示: 块; 
+            display: block; 
             width: 100%; 
-            内边距: 15像素; 
-            边距: 8像素 0; 
-            边框: 无; 
+            padding: 15px; 
+            margin: 8px 0; 
+            border: none; 
             border-radius: 4px; 
-            背景颜色: #e3f2fd;
-            颜色: #1976D2;
-            字体大小: 18像素; 
-            字体粗细: 加粗; 
-            光标: 指针; 
-            文本对齐: 居中; 
+            background-color: #e3f2fd; 
+            color: #1976D2; 
+            font-size: 18px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-align: center; 
             touch-action: manipulation; 
         }
         .word-btn:active { background-color: #bbdefb; }
         .empty-tip { 
-            文本对齐: 居中; 
-            颜色: #666; 
+            text-align: center; 
+            color: #666; 
             padding: 20px; 
-            字体大小: 16像素; 
+            font-size: 16px; 
         }
-        .状态信息 { 
-            文本对齐: 居中; 
-            颜色: #ff9800;
+        .status-info { 
+            text-align: center; 
+            color: #ff9800; 
             padding: 10px; 
             font-size: 14px;
             margin-bottom:10px; 
         }
-        .指令 { 
-            背景: #d1ecf1;
+        .instructions { 
+            background: #d1ecf1; 
             border: 1px solid #bee5eb; 
             padding: 10px; 
             border-radius: 4px; 
-            下边距: 15像素; 
+            margin-bottom: 15px; 
         }
-        .已保存列表 { 上边距: 15像素; }
+        .saved-list { margin-top: 15px; }
         /* 已保存词表项 - 折叠样式 */
         .saved-item-details {
-            边框: 1像素 实线#eee;
+            border: 1px solid #eee;
             border-radius: 4px;
             margin-bottom: 8px;
             background: #fff;
         }
-        .保存的项目摘要 {
+        .saved-item-summary {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 12px;
             background-color: #f9f9f9;
             cursor: pointer;
-            列表样式: 无;
+            list-style: none;
         }
-        .保存的项目摘要::-webkit-details-marker {
-            显示: 无;
+        .saved-item-summary::-webkit-details-marker {
+            display: none;
         }
-        .已保存项目摘要::之后 {
+        .saved-item-summary::after {
             content: "▼";
             font-size: 12px;
             color: #666;
@@ -160,14 +160,14 @@
             display: flex;
             gap: 8px;
         }
-        .加载按钮 {
-            背景颜色: #FF9800;颜色: 白色;
-            边框: 无; 内边距: 4像素 8像素; 圆角: 4像素;
+        .load-btn {
+            background-color: #FF9800; color: white;
+            border: none; padding: 4px 8px; border-radius: 4px;
             cursor: pointer; font-size: 12px;
         }
-        .删除按钮 {
+        .delete-btn {
             background-color: #f44336; color: white;
-            边框: 无; 内边距: 4像素 8像素; 圆角: 4像素;
+            border: none; padding: 4px 8px; border-radius: 4px;
             cursor: pointer; font-size: 12px;
         }
         /* 词表单词列表 */
@@ -176,19 +176,19 @@
             border-top: 1px solid #eee;
             display: flex;
             flex-wrap: wrap;
-            间距: 6像素;
+            gap: 6px;
         }
-        .已保存的词标签 {
-            背景颜色: #f0f7ff;
-            颜色: #1976D2;
+        .saved-word-tag {
+            background-color: #f0f7ff;
+            color: #1976D2;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 13px;
         }
 
-        .单词库, .输入区域 {
-            背景: 白色; 内边距: 0; 圆角: 8像素;
-            底部边距: 20像素; 盒阴影: 0 2像素 4像素 rgba(0,0,0,0.1);
+        .word-library, .input-area {
+            background: white; padding: 0; border-radius: 8px;
+            margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .library-main-header {
             display:flex; justify-content:space-between; align-items:center;
@@ -225,15 +225,15 @@
         .btn-select-all { background-color: #4CAF50; color: white; }
         .btn-deselect-all { background-color: #9E9E9E; color: white; }
         .play-mode, .order-mode {
-            显示:flex; 间距:8像素; 边距:10像素 0; 换行:换行;
+            display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;
         }
         .mode-radio { display:flex; align-items:center; gap:4px; }
     </style>
 </head>
 
-<正文>
+<body>
     <div class="container">
-        <h1>📚 单词听写工具（何家坳2106班1）</h1>
+        <h1>📚 单词听写工具（何家坳2106班）</h1>
         <div class="instructions">
             <strong>💡 使用说明：</strong><br>
             1. 点击总标题展开/收起单词库/自定义输入区<br>
@@ -282,9 +282,9 @@
             </div>
         </div>
 
-<!-- 词库区域（保留原功能） -->
+<!-- 词库区域 1 何家坳2106班重点单词库 【已删除行内onclick】 -->
 <div class="word-library">
-<div class="library-main-header" onclick="toggleWholeLibrary(this)">
+<div class="library-main-header">
 <span class="main-lib-title">📚 何家坳2106班-最新重点单词库</span>
 <span class="main-fold-btn">展开▼</span>
 </div>
@@ -297,7 +297,7 @@
     </div>
 
     <div class="category-wrap">
-        <div class="category-header" onclick="toggleFold(this)">
+        <div class="category-header">
             <span class="category-title">一、身体部位</span>
             <span class="fold-btn">展开▼</span>
         </div>
@@ -319,8 +319,9 @@
 </div>
 </div>
 
-      <div class="word-library">
-    <div class="library-main-header" onclick="toggleWholeLibrary(this)">
+<!-- 词库区域 2 人教版PEP 3-6年级 【已删除行内onclick】 -->
+<div class="word-library">
+    <div class="library-main-header">
         <span class="main-lib-title">📚 人教版PEP 3-6年级完整单词库</span>
         <span class="main-fold-btn">展开▼</span>
     </div>
@@ -333,14 +334,14 @@
 
         <!-- 三年级上册 -->
         <div class="category-wrap">
-            <div class="category-header" onclick="toggleFold(this)">
+            <div class="category-header">
                 <span class="category-title">三年级上册</span>
                 <span class="fold-btn">展开▼</span>
             </div>
             <div class="category-content">
                 <!-- 三年级上册 Unit 1 Hello! -->
                 <div class="category-wrap">
-                    <div class="category-header" onclick="toggleFold(this)">
+                    <div class="category-header">
                         <span class="category-title">Unit 1 Hello!</span>
                         <span class="fold-btn">展开▼</span>
                     </div>
@@ -364,29 +365,28 @@
            </div>
         </div>
 
-
-        <!-- 自定义单词输入 -->
-        <div class="input-area">
-            <div class="library-main-header" onclick="toggleCustomLibrary(this)">
-                <span class="main-lib-title">✍️ 自定义单词输入</span>
-                <span class="main-fold-btn">展开▼</span>
-            </div>
-            <div class="custom-inner">
-                <div class="control-group" style="margin-bottom:12px;">
-                    <label class="control-label">单词表标题:</label>
-                    <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
-                </div>
-                <textarea id="wordInput" placeholder="格式：英文 中文，一行一个"></textarea>
-                <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
-                <button class="btn btn-load" onclick="playAll()">播放全部</button>
-
-                <div class="word-list">
-                    <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
-                    <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
-                    <button class="btn btn-clear" onclick="clearWords()">清空所有保存词表</button>
-                </div>
-            </div>
+<!-- 自定义单词输入 【已删除行内onclick】 -->
+<div class="input-area">
+    <div class="library-main-header">
+        <span class="main-lib-title">✍️ 自定义单词输入</span>
+        <span class="main-fold-btn">展开▼</span>
+    </div>
+    <div class="custom-inner">
+        <div class="control-group" style="margin-bottom:12px;">
+            <label class="control-label">单词表标题:</label>
+            <input type="text" id="listTitle" class="control-input" placeholder="例如：小学英语Unit1">
         </div>
+        <textarea id="wordInput" placeholder="格式：英文 中文，一行一个"></textarea>
+        <button class="btn btn-save" onclick="saveWordsWithSettings()">保存单词表</button>
+        <button class="btn btn-load" onclick="playAll()">播放全部</button>
+
+        <div class="word-list">
+            <h2 style="margin-bottom:15px; color:#333; font-size:18px;">已保存的单词表</h2>
+            <div id="savedLists" class="saved-list"><p class="empty-tip">暂无保存词表</p></div>
+            <button class="btn btn-clear" onclick="clearWords()">清空所有保存词表</button>
+        </div>
+    </div>
+</div>
 
         <!-- 当前听写单词列表 -->
         <div class="word-list">
@@ -402,72 +402,37 @@
         let isPlayingAll = false, playAllIndex = 0;
         let wordCnMap = new Map();
         let playWords = [];
-        // 标记：是否已通过用户交互激活语音（移动端语音兼容核心）
         let isVoiceActivated = false;
 
-        // 折叠/展开 总词库（修复：添加event参数，阻止冒泡）
-        function toggleWholeLibrary(el, event) {
-            event = event || window.event;
-            event.stopPropagation(); // 阻止事件冒泡到父元素
-            
-            let innerBox = el.nextElementSibling;
-            let btnText = el.querySelector(".main-fold-btn");
-            if(innerBox.classList.contains("show")){
-                innerBox.classList.remove("show");
-                btnText.innerText = "展开▼";
-            }else{
-                innerBox.classList.add("show");
-                btnText.innerText = "收起▲";
+        // ========== 核心：通用折叠函数（纯DOM逻辑，无行内事件） ==========
+        function toggleFoldPanel(header) {
+            const content = header.nextElementSibling;
+            const btnText = header.querySelector('.main-fold-btn, .fold-btn');
+            if (content.classList.contains('show')) {
+                content.classList.remove('show');
+                btnText.innerText = '展开▼';
+            } else {
+                content.classList.add('show');
+                btnText.innerText = '收起▲';
             }
         }
 
-        // 折叠/展开 自定义输入区（修复：添加event参数，阻止冒泡）
-        function toggleCustomLibrary(el, event) {
-            event = event || window.event;
-            event.stopPropagation(); // 阻止事件冒泡
-            
-            let innerBox = el.nextElementSibling;
-            let btnText = el.querySelector(".main-fold-btn");
-            if(innerBox.classList.contains("show")){
-                innerBox.classList.remove("show");
-                btnText.innerText = "展开▼";
-            }else{
-                innerBox.classList.add("show");
-                btnText.innerText = "收起▲";
-            }
-        }
-
-        // 折叠/展开 分类（修复：添加event参数，阻止冒泡）
-        function toggleFold(el, event) {
-            event = event || window.event;
-            event.stopPropagation(); // 阻止事件冒泡到父级
-            
-            let content = el.nextElementSibling;
-            let btn = el.querySelector(".fold-btn");
-            if(content.classList.contains("show")){
-                content.classList.remove("show");
-                btn.innerText = "展开▼";
-            }else{
-                content.classList.add("show");
-                btn.innerText = "收起▲";
-            }
-        }
-
-        // 全选/全不选 单词复选框（修复：参数处理）
+        // 全选当前词库单词
         function selectAllWords(el) {
-            let container = el.closest('.library-inner');
+            const container = el.closest('.library-inner');
             if (container) {
-                container.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+                container.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             } else {
-                document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+                document.querySelectorAll('.library-word').forEach(cb => cb.checked = true);
             }
         }
+        // 取消全选当前词库单词
         function deselectAllWords(el) {
-            let container = el.closest('.library-inner');
+            const container = el.closest('.library-inner');
             if (container) {
-                container.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+                container.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             } else {
-                document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+                document.querySelectorAll('.library-word').forEach(cb => cb.checked = false);
             }
         }
 
@@ -479,20 +444,18 @@
             return document.querySelector('input[name="playOrder"]:checked').value;
         }
 
-        // 【核心修复】用户手动交互激活语音，解决移动端自动播放拦截
+        // 语音激活（移动端防拦截核心）
         function activateVoice() {
             if (isVoiceActivated) return;
             isVoiceActivated = true;
-            // 初始化并唤醒音频上下文（修复iOS Safari无声）
             if(!audioContext) audioContext = new (window.AudioContext||window.webkitAudioContext)();
             if(audioContext.state === 'suspended') audioContext.resume();
-            // 刷新语音列表
             if(speechSynthesisAvailable) {
                 voices = window.speechSynthesis.getVoices();
             }
         }
 
-        // 初始化系统语音合成
+        // 初始化系统语音
         if('speechSynthesis' in window){
             speechSynthesisAvailable = true;
             window.speechSynthesis.onvoiceschanged = () => {
@@ -500,12 +463,12 @@
             };
         }
 
-        // 语速滑块实时显示数值
+        // 语速滑块数值同步
         document.getElementById('rateSlider').addEventListener('input',e=>{
             document.getElementById('rateValue').textContent = e.target.value;
         });
 
-        // 清空当前播报列表
+        // 清空播报列表
         function emptyPlayList(){
             if(!confirm("确定要清空当前播报列表吗？")) return;
             speechSynthesis.cancel();
@@ -518,7 +481,7 @@
             document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
         }
 
-        // 语音播报核心函数
+        // 单个单词语音播报
         function speakWord(enWord, cnWord, callback=null){
             if(!speechSynthesisAvailable){
                 alert("当前浏览器不支持语音播报，请更换浏览器重试");
@@ -548,7 +511,6 @@
                 let utt = new SpeechSynthesisUtterance(item.txt);
                 utt.rate = item.rate;
                 utt.lang = item.lang;
-                // 匹配对应语种语音
                 let targetVoice;
                 if(item.lang === "zh-CN"){
                     targetVoice = voices.find(v=>v.lang.includes("zh")) || voices[0];
@@ -562,7 +524,7 @@
             speakOnce();
         }
 
-        // 听写开始提示语音
+        // 听写开始提示音
         function speakStartTip(){
             activateVoice();
             let utt = new SpeechSynthesisUtterance("听写准备开始");
@@ -573,7 +535,7 @@
             window.speechSynthesis.speak(utt);
         }
 
-        // 播报完成提示语音
+        // 播报完成提示音
         function speakFinishTip(){
             activateVoice();
             let utt = new SpeechSynthesisUtterance("播报完成");
@@ -584,15 +546,10 @@
             window.speechSynthesis.speak(utt);
         }
 
-        // 从内置词库勾选单词开始听写（修复：参数处理）
+        // 从当前词库勾选单词开始听写
         function startDictationFromLibrary(el) {
-            let container = el.closest('.library-inner');
-            let checks;
-            if (container) {
-                checks = container.querySelectorAll('.library-word:checked');
-            } else {
-                checks = document.querySelectorAll('.library-word:checked');
-            }
+            const container = el.closest('.library-inner');
+            let checks = container ? container.querySelectorAll('.library-word:checked') : document.querySelectorAll('.library-word:checked');
             
             let enList=[], cnList=[];
             checks.forEach(item=>{
@@ -617,7 +574,7 @@
                 customHeader.querySelector('.main-fold-btn').innerText = '收起▲';
                 document.getElementById('listTitle').focus();
                 alert("单词及释义已自动填充，请填写单词表标题后点击「保存单词表」");
-                返回;
+                return;
             }
 
             let set = {
@@ -635,7 +592,7 @@
             setTimeout(playAll,300);
         }
 
-        // 数组随机打乱（随机听写使用）
+        // 数组随机打乱
         function shuffleArray(arr) {
             let newArr = [...arr];
             for (let i = newArr.length - 1; i > 0; i--) {
@@ -645,7 +602,7 @@
             return newArr;
         }
 
-        // 批量播放全部单词（核心听写逻辑）
+        // 批量播放全部单词
         function playAll(){
             activateVoice();
             if(isPlayingAll){
@@ -659,7 +616,6 @@
             
             let originalWords = raw.split('\n').filter(w=>w.trim());
             const order = getPlayOrder();
-            
             playWords = order === "random" ? shuffleArray(originalWords) : originalWords;
             
             if(!playWords.length)return;
@@ -687,7 +643,7 @@
             nextPlay();
         }
 
-        // 保存自定义单词表及当前配置
+        // 保存自定义单词表
         function saveWordsWithSettings(){
             let input = document.getElementById('wordInput').value.trim();
             let title = document.getElementById('listTitle').value.trim();
@@ -719,44 +675,44 @@
             });
             localStorage.setItem('dictationWords', pureEnList.join('\n'));
             
-            提示(“保存成功”);
+            alert("保存成功");
             loadWords();loadSavedLists();
             document.getElementById('wordInput').value="";
             document.getElementById('listTitle').value="";
         }
 
-        // 渲染当前待听写单词列表
+        // 渲染当前单词列表
         function loadWords(){
             let raw = localStorage.getItem('dictationWords');
             let wrap = document.getElementById('wordList');
             wrap.innerHTML="";
             if(!raw){
                 wrap.innerHTML='<p class="empty-tip">暂无单词，请先勾选或输入保存</p>';
-                返回;
+                return;
             }
             let words = raw.split('\n').filter(w=>w.trim());
             words.forEach(word=>{
                 let btn = document.createElement('button');
                 btn.className="word-btn";
                 btn.textContent=word;
-                按钮.onclick=()=>{
-                    激活语音();
+                btn.onclick=()=>{
+                    activateVoice();
                     let cn = wordCnMap.get(word)||"";
-                    发音(单词,中文);
+                    speakWord(word,cn);
                 };
-                wrap.appendChild(按钮);
+                wrap.appendChild(btn);
             });
         }
 
-        // 加载本地存储的所有已保存词表
+        // 加载已保存词表
         function loadSavedLists(){
             let box = document.getElementById('savedLists');
             box.innerHTML="";let has=false;
             for(let i=0;i<localStorage.length;i++){
                 let key = localStorage.key(i);
-                如果(key.以开头("wordList_")){
+                if(key.startsWith("wordList_")){
                     has=true;
-                    let name = key.截取(9);
+                    let name = key.slice(9);
                     let data = JSON.parse(localStorage.getItem(key));
                     let words = data.words.split('\n').filter(w=>w.trim());
                     
@@ -790,7 +746,7 @@
             if(!has) box.innerHTML='<p class="empty-tip">暂无保存词表</p>';
         }
 
-        // 加载指定词表并恢复配置
+        // 加载指定词表
         function loadList(key){
             let d = JSON.parse(localStorage.getItem(key));
             if(!d||!d.words)return alert("数据损坏");
@@ -801,22 +757,22 @@
             document.getElementById('repeatCount').value=d.settings.repeat;
             document.getElementById('intervalTime').value=d.settings.interval;
             document.getElementById('rateValue').textContent=d.settings.rate;
-            
+            document.querySelector(`input[name="playOrder"][value="${d.settings.order}"]`).checked = true;
             
             wordCnMap.clear();
             let lines = d.words.split('\n').filter(w=>w.trim());
             let pureEnList = [];
-            行.forEach(行=>{
-                let 部分 = 行.split(/\s+/);
-                let en = 部分[0];
-                let cn = 零件.切片(1).连接(" ");
-                纯En列表.推送(en);
+            lines.forEach(line=>{
+                let parts = line.split(/\s+/);
+                let en = parts[0];
+                let cn = parts.slice(1).join(" ");
+                pureEnList.push(en);
                 wordCnMap.set(en, cn);
             });
             localStorage.setItem('dictationWords', pureEnList.join('\n'));
             
             loadWords();
-            提示("词表加载完成");
+            alert("词表加载完成");
         }
 
         // 删除单个词表
@@ -827,9 +783,9 @@
             }
         }
 
-        // 清空所有本地保存的词表
+        // 清空所有词表
         function clearWords(){
-            如果(确认(“确定要清空所有已保存的单词表吗？此操作不可恢复！”)){
+            if(confirm("确定要清空所有已保存的单词表吗？此操作不可恢复！")){
                 speechSynthesis.cancel();
                 isPlayingAll = false; playAllIndex = 0;
                 localStorage.removeItem('dictationWords');
@@ -850,25 +806,42 @@
             }
         }
 
-        // 页面初始化：读取历史配置、加载词表
-        window.onload=()=>{
+        // ========== 页面初始化 + 绑定所有折叠点击事件（关键修复） ==========
+        window.onload=function(){
+            // 恢复历史配置
             let s = JSON.parse(localStorage.getItem('currentSettings')||null);
-            如果(s){
+            if(s){
                 document.getElementById('rateSlider').value=s.rate;
-                document.getElementById('repeatCount')value=srepeat;
+                document.getElementById('repeatCount').value=s.repeat;
                 document.getElementById('intervalTime').value=s.interval;
-                document.getElementById('rateValue')textContent=srate;
+                document.getElementById('rateValue').textContent=s.rate;
                 if(s.order) document.querySelector(`input[name="playOrder"][value="${s.order}"]`).checked = true;
             }
+
+            // 1. 绑定【总词库/自定义区域】头部点击
+            document.querySelectorAll('.library-main-header').forEach(header=>{
+                header.addEventListener('click', function(){
+                    toggleFoldPanel(this);
+                });
+            });
+
+            // 2. 绑定【分类/单元】头部点击（多层子分类）
+            document.querySelectorAll('.category-header').forEach(header=>{
+                header.addEventListener('click', function(){
+                    toggleFoldPanel(this);
+                });
+            });
+
+            // 初始化列表
             loadWords();
             loadSavedLists();
         };
 
-        // 页面切后台暂停语音，切前台恢复
+        // 页面切后台暂停语音
         document.addEventListener('visibilitychange',()=>{
-            如果(document.隐藏&&正在播放) 语音合成.暂停();
+            if(document.hidden&&isPlayingAll) speechSynthesis.pause();
             else if(isPlayingAll) speechSynthesis.resume();
         });
     </script>
-</身体>
-    </html>
+</body>
+</html>
