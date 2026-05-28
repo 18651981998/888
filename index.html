@@ -118,7 +118,7 @@
             color: #ff9800; 
             padding: 10px; 
             font-size: 14px;
-            margin-bottom:10px;
+            margin-bottom:10px; 
         }
         .instructions { 
             background: #d1ecf1; 
@@ -291,9 +291,9 @@
 
 <div class="library-inner">
     <div class="library-controls">
-        <button class="btn-library btn-select-all" onclick="selectAllWords()">全选</button>
-        <button class="btn-library btn-deselect-all" onclick="deselectAllWords()">全不选</button>
-        <button class="btn-library btn-primary" onclick="startDictationFromLibrary()">开始听写</button>
+        <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
+        <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
+        <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
     </div>
 
     <div class="category-wrap">
@@ -405,8 +405,11 @@
         // 标记：是否已通过用户交互激活语音（移动端语音兼容核心）
         let isVoiceActivated = false;
 
-        // 折叠/展开 总词库
-        function toggleWholeLibrary(el){
+        // 折叠/展开 总词库（修复：添加event参数，阻止冒泡）
+        function toggleWholeLibrary(el, event) {
+            event = event || window.event;
+            event.stopPropagation(); // 阻止事件冒泡到父元素
+            
             let innerBox = el.nextElementSibling;
             let btnText = el.querySelector(".main-fold-btn");
             if(innerBox.classList.contains("show")){
@@ -418,8 +421,11 @@
             }
         }
 
-        // 折叠/展开 自定义输入区
-        function toggleCustomLibrary(el){
+        // 折叠/展开 自定义输入区（修复：添加event参数，阻止冒泡）
+        function toggleCustomLibrary(el, event) {
+            event = event || window.event;
+            event.stopPropagation(); // 阻止事件冒泡
+            
             let innerBox = el.nextElementSibling;
             let btnText = el.querySelector(".main-fold-btn");
             if(innerBox.classList.contains("show")){
@@ -431,8 +437,11 @@
             }
         }
 
-        // 折叠/展开 分类
-        function toggleFold(el){
+        // 折叠/展开 分类（修复：添加event参数，阻止冒泡）
+        function toggleFold(el, event) {
+            event = event || window.event;
+            event.stopPropagation(); // 阻止事件冒泡到父级
+            
             let content = el.nextElementSibling;
             let btn = el.querySelector(".fold-btn");
             if(content.classList.contains("show")){
@@ -444,12 +453,22 @@
             }
         }
 
-        // 全选/全不选 单词复选框
-        function selectAllWords(){
-            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+        // 全选/全不选 单词复选框（修复：参数处理）
+        function selectAllWords(el) {
+            let container = el.closest('.library-inner');
+            if (container) {
+                container.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+            } else {
+                document.querySelectorAll('.library-word').forEach(cb=>cb.checked=true);
+            }
         }
-        function deselectAllWords(){
-            document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+        function deselectAllWords(el) {
+            let container = el.closest('.library-inner');
+            if (container) {
+                container.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+            } else {
+                document.querySelectorAll('.library-word').forEach(cb=>cb.checked=false);
+            }
         }
 
         // 获取播报模式 / 听写顺序
@@ -565,9 +584,16 @@
             window.speechSynthesis.speak(utt);
         }
 
-        // 从内置词库勾选单词开始听写
-        function startDictationFromLibrary(){
-            let checks = document.querySelectorAll('.library-word:checked');
+        // 从内置词库勾选单词开始听写（修复：参数处理）
+        function startDictationFromLibrary(el) {
+            let container = el.closest('.library-inner');
+            let checks;
+            if (container) {
+                checks = container.querySelectorAll('.library-word:checked');
+            } else {
+                checks = document.querySelectorAll('.library-word:checked');
+            }
+            
             let enList=[], cnList=[];
             checks.forEach(item=>{
                 enList.push(item.value);
