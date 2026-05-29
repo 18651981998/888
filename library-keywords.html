@@ -1,1 +1,310 @@
+<div class="library-controls">
+    <button class="btn-library btn-select-all" onclick="selectAllWords(this)">全选</button>
+    <button class="btn-library btn-deselect-all" onclick="deselectAllWords(this)">全不选</button>
+    <button class="btn-library btn-primary" onclick="startDictationFromLibrary(this)">开始听写</button>
+</div>
 
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">一、身体部位</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鼻子" value="nose">nose<span class="cn-text">鼻子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脸" value="face">face<span class="cn-text">脸</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="耳朵" value="ear">ear<span class="cn-text">耳朵</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="手" value="hand">hand<span class="cn-text">手</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="眼睛" value="eye">eye<span class="cn-text">眼睛</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="嘴巴" value="mouth">mouth<span class="cn-text">嘴巴</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="胳膊" value="arm">arm<span class="cn-text">胳膊</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="腿" value="leg">leg<span class="cn-text">腿</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="脚" value="foot">foot<span class="cn-text">脚</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="身体" value="body">body<span class="cn-text">身体</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">二、家人及人物</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="妈妈" value="mother">mother<span class="cn-text">妈妈</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="爸爸" value="father">father<span class="cn-text">爸爸</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="奶奶" value="grandmother">grandmother<span class="cn-text">奶奶</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="爷爷" value="grandfather">grandfather<span class="cn-text">爷爷</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="我" value="me">me<span class="cn-text">我</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="姐妹" value="sister">sister<span class="cn-text">姐妹</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="兄弟" value="brother">brother<span class="cn-text">兄弟</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="堂表亲" value="cousin">cousin<span class="cn-text">堂表亲</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="婴儿" value="baby">baby<span class="cn-text">婴儿</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="叔叔" value="uncle">uncle<span class="cn-text">叔叔</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="阿姨" value="aunt">aunt<span class="cn-text">阿姨</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="男孩" value="boy">boy<span class="cn-text">男孩</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="女孩" value="girl">girl<span class="cn-text">女孩</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="女人" value="woman">woman<span class="cn-text">女人</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="男人" value="man">man<span class="cn-text">男人</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="老师" value="teacher">teacher<span class="cn-text">老师</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="学生" value="student">student<span class="cn-text">学生</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="家庭" value="family">family<span class="cn-text">家庭</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="小孩" value="kid / children / child">kid / children / child<span class="cn-text">小孩</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">三、动物</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鱼" value="fish">fish<span class="cn-text">鱼</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="猫" value="cat">cat<span class="cn-text">猫</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鸟" value="bird">bird<span class="cn-text">鸟</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="兔子" value="rabbit">rabbit<span class="cn-text">兔子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="狗" value="dog">dog<span class="cn-text">狗</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="熊猫" value="panda">panda<span class="cn-text">熊猫</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="猴子" value="monkey">monkey<span class="cn-text">猴子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="老虎" value="tiger">tiger<span class="cn-text">老虎</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="大象" value="elephant">elephant<span class="cn-text">大象</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="狮子" value="lion">lion<span class="cn-text">狮子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="宠物" value="pet">pet<span class="cn-text">宠物</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="动物" value="animal">animal<span class="cn-text">动物</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="马" value="horse">horse<span class="cn-text">马</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="猪" value="pig">pig<span class="cn-text">猪</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="牛" value="cow">cow<span class="cn-text">牛</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="羊" value="sheep">sheep<span class="cn-text">羊</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鸡" value="chicken">chicken<span class="cn-text">鸡</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">四、水果与景物</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="苹果" value="apple">apple<span class="cn-text">苹果</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="香蕉" value="banana">banana<span class="cn-text">香蕉</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="葡萄" value="grape">grape<span class="cn-text">葡萄</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="橙子" value="orange">orange<span class="cn-text">橙子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="空气" value="air">air<span class="cn-text">空气</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="水" value="water">water<span class="cn-text">水</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="太阳" value="sun">sun<span class="cn-text">太阳</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="花朵" value="flower">flower<span class="cn-text">花朵</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="草" value="grass">grass<span class="cn-text">草</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="树木" value="tree">tree<span class="cn-text">树木</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="农场" value="farm">farm<span class="cn-text">农场</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="花园" value="garden">garden<span class="cn-text">花园</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="公园" value="park">park<span class="cn-text">公园</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="动物园" value="zoo">zoo<span class="cn-text">动物园</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">五、颜色</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="橙红色" value="orange">orange<span class="cn-text">橙红色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="绿色" value="green">green<span class="cn-text">绿色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="红色" value="red">red<span class="cn-text">红色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="蓝色" value="blue">blue<span class="cn-text">蓝色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="紫色" value="purple">purple<span class="cn-text">紫色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="棕色" value="brown">brown<span class="cn-text">棕色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="黄色" value="yellow">yellow<span class="cn-text">黄色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="粉色" value="pink">pink<span class="cn-text">粉色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="白色" value="white">white<span class="cn-text">白色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="黑色" value="black">black<span class="cn-text">黑色</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="颜色" value="colour">colour<span class="cn-text">颜色</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">六、数字</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="一" value="one">one<span class="cn-text">一</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="二" value="two">two<span class="cn-text">二</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="三" value="three">three<span class="cn-text">三</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="四" value="four">four<span class="cn-text">四</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="五" value="five">five<span class="cn-text">五</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="六" value="six">six<span class="cn-text">六</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="七" value="seven">seven<span class="cn-text">七</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="八" value="eight">eight<span class="cn-text">八</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="九" value="nine">nine<span class="cn-text">九</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十" value="ten">ten<span class="cn-text">十</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十一" value="eleven">eleven<span class="cn-text">十一</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十二" value="twelve">twelve<span class="cn-text">十二</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十三" value="thirteen">thirteen<span class="cn-text">十三</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十四" value="fourteen">fourteen<span class="cn-text">十四</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十五" value="fifteen">fifteen<span class="cn-text">十五</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十六" value="sixteen">sixteen<span class="cn-text">十六</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十七" value="seventeen">seventeen<span class="cn-text">十七</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十八" value="eighteen">eighteen<span class="cn-text">十八</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="十九" value="nineteen">nineteen<span class="cn-text">十九</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="二十" value="twenty">twenty<span class="cn-text">二十</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">七、国家</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="中国" value="China">China<span class="cn-text">中国</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="英国" value="UK">UK<span class="cn-text">英国</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="加拿大" value="Canada">Canada<span class="cn-text">加拿大</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="美国" value="USA">USA<span class="cn-text">美国</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">八、学习文具</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="铅笔" value="pencil">pencil<span class="cn-text">铅笔</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="钢笔" value="pen">pen<span class="cn-text">钢笔</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="书本" value="book">book<span class="cn-text">书本</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="尺子" value="ruler">ruler<span class="cn-text">尺子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="书包" value="bag">bag<span class="cn-text">书包</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="橡皮" value="eraser">eraser<span class="cn-text">橡皮</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">九、天气和季节</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="阳光充足的" value="sunny">sunny<span class="cn-text">阳光充足的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="多风的" value="windy">windy<span class="cn-text">多风的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="多云的" value="cloudy">cloudy<span class="cn-text">多云的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="阴雨的" value="rainy">rainy<span class="cn-text">阴雨的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="多雪的" value="snowy">snowy<span class="cn-text">多雪的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="凉爽的" value="cool">cool<span class="cn-text">凉爽的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="热的" value="hot">hot<span class="cn-text">热的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="冷的" value="cold">cold<span class="cn-text">冷的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="温暖的" value="warm">warm<span class="cn-text">温暖的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="春天" value="spring">spring<span class="cn-text">春天</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="夏天" value="summer">summer<span class="cn-text">夏天</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="秋天" value="autumn">autumn<span class="cn-text">秋天</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="冬天" value="winter">winter<span class="cn-text">冬天</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十、食物</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="面条" value="noodles">noodles<span class="cn-text">面条</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鸡蛋" value="egg">egg<span class="cn-text">鸡蛋</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="蛋糕" value="cake">cake<span class="cn-text">蛋糕</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="果汁" value="juice">juice<span class="cn-text">果汁</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="面包" value="bread">bread<span class="cn-text">面包</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="牛奶" value="milk">milk<span class="cn-text">牛奶</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="汤" value="soup">soup<span class="cn-text">汤</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="水果" value="fruit">fruit<span class="cn-text">水果</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="肉" value="meat">meat<span class="cn-text">肉</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="米饭" value="rice">rice<span class="cn-text">米饭</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="蔬菜" value="vegetables">vegetables<span class="cn-text">蔬菜</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="西红柿" value="tomato">tomato<span class="cn-text">西红柿</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="土豆" value="potato">potato<span class="cn-text">土豆</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十一、职业</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="农民" value="farmer">farmer<span class="cn-text">农民</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="护士" value="nurse">nurse<span class="cn-text">护士</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="医生" value="doctor">doctor<span class="cn-text">医生</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="公司职员" value="office worker">office worker<span class="cn-text">公司职员</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="工厂工人" value="factory worker">factory worker<span class="cn-text">工厂工人</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="清洁工" value="cleaner">cleaner<span class="cn-text">清洁工</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="公交车司机" value="bus driver">bus driver<span class="cn-text">公交车司机</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="快递员" value="delivery worker">delivery worker<span class="cn-text">快递员</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="警察" value="police officer">police officer<span class="cn-text">警察</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="厨师" value="cook">cook<span class="cn-text">厨师</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十二、形容词</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="长的" value="long">long<span class="cn-text">长的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="短的，矮的" value="short">short<span class="cn-text">短的，矮的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="高的" value="tall">tall<span class="cn-text">高的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="友好的" value="kind">kind<span class="cn-text">友好的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="肥胖的" value="fat">fat<span class="cn-text">肥胖的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="瘦的" value="thin">thin<span class="cn-text">瘦的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="缓慢的" value="slow">slow<span class="cn-text">缓慢的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="快的" value="fast">fast<span class="cn-text">快的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="又高又壮" value="tall and strong">tall and strong<span class="cn-text">又高又壮</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="又矮又瘦" value="short and thin">short and thin<span class="cn-text">又矮又瘦</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十三、动词短语</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="放风筝" value="fly kites">fly kites<span class="cn-text">放风筝</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="扫地" value="sweep the floor">sweep the floor<span class="cn-text">扫地</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="打扫房间" value="clean the room">clean the room<span class="cn-text">打扫房间</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="读书" value="read books">read books<span class="cn-text">读书</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="玩游戏" value="play games">play games<span class="cn-text">玩游戏</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="踢足球" value="play football">play football<span class="cn-text">踢足球</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="去购物" value="go shopping">go shopping<span class="cn-text">去购物</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="散步" value="take a walk">take a walk<span class="cn-text">散步</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="做运动" value="do sports">do sports<span class="cn-text">做运动</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="看医生" value="see a doctor">see a doctor<span class="cn-text">看医生</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="看电影" value="see a film">see a film<span class="cn-text">看电影</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="唱歌" value="sing">sing<span class="cn-text">唱歌</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="跳舞" value="dance">dance<span class="cn-text">跳舞</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="堆雪人" value="make a snowman">make a snowman<span class="cn-text">堆雪人</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="做蛋糕" value="make a cake">make a cake<span class="cn-text">做蛋糕</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="看见" value="see">see<span class="cn-text">看见</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="闻（气味）" value="smell">smell<span class="cn-text">闻（气味）</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="尝（味道）" value="taste">taste<span class="cn-text">尝（味道）</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="听见" value="hear">hear<span class="cn-text">听见</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="制作" value="make">make<span class="cn-text">制作</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十四、课程</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="语文课" value="Chinese class">Chinese class<span class="cn-text">语文课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="英语课" value="English class">English class<span class="cn-text">英语课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="数学课" value="maths class">maths class<span class="cn-text">数学课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="美术课" value="art class">art class<span class="cn-text">美术课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="音乐课" value="music class">music class<span class="cn-text">音乐课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="体育课" value="PE class">PE class<span class="cn-text">体育课</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="电脑课" value="computer class">computer class<span class="cn-text">电脑课</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十五、介词</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="在...上面" value="on">on<span class="cn-text">在...上面</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="在...里面" value="in">in<span class="cn-text">在...里面</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="在...下面" value="under">under<span class="cn-text">在...下面</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十六、服装配饰</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="毛衣" value="sweater">sweater<span class="cn-text">毛衣</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="大衣" value="coat">coat<span class="cn-text">大衣</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="短袜" value="socks">socks<span class="cn-text">短袜</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="连衣裙" value="dress">dress<span class="cn-text">连衣裙</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="衬衫" value="shirt">shirt<span class="cn-text">衬衫</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="长裤" value="trousers">trousers<span class="cn-text">长裤</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="短裤" value="shorts">shorts<span class="cn-text">短裤</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="夹克衫" value="jacket">jacket<span class="cn-text">夹克衫</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="短裙" value="skirt">skirt<span class="cn-text">短裙</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="鞋子" value="shoes">shoes<span class="cn-text">鞋子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="帽子" value="hat">hat<span class="cn-text">帽子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="太阳镜" value="sunglasses">sunglasses<span class="cn-text">太阳镜</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="便宜的" value="cheap">cheap<span class="cn-text">便宜的</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="昂贵的" value="expensive">expensive<span class="cn-text">昂贵的</span></div>
+    </div></div>
+</details>
+
+<details class="category-details">
+    <summary class="category-summary"><span class="category-title">十七、居室及物品</span></summary>
+    <div class="category-content"><div class="word-checkboxes">
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="卧室" value="bedroom">bedroom<span class="cn-text">卧室</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="浴室、洗手间" value="bathroom">bathroom<span class="cn-text">浴室、洗手间</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="书房" value="study">study<span class="cn-text">书房</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="客厅" value="living room">living room<span class="cn-text">客厅</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="厨房" value="kitchen">kitchen<span class="cn-text">厨房</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="风扇" value="fan">fan<span class="cn-text">风扇</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="门" value="door">door<span class="cn-text">门</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="窗户" value="window">window<span class="cn-text">窗户</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="椅子" value="chair">chair<span class="cn-text">椅子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="桌子" value="desk">desk<span class="cn-text">桌子</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="灯" value="light">light<span class="cn-text">灯</span></div>
+        <div class="word-checkbox-item"><input type="checkbox" class="library-word" data-cn="电视" value="TV">TV<span class="cn-text">电视</span></div>
+    </div></div>
+</details>
